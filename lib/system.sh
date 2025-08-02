@@ -87,29 +87,29 @@ configure_hostname() {
         info "Configuring hostname to: $new_hostname"
         
         if [[ "$DRY_RUN" == "false" ]]; then
-            # Set hostname
-            hostnamectl set-hostname "$new_hostname"
-            
             # Update /etc/hosts if domain is provided
             if [[ -n "$domain" ]]; then
+                local fqdn="$new_hostname.$domain"
+                
+                # Set hostname to FQDN for proper configuration
+                hostnamectl set-hostname "$fqdn"
+                
                 # Use template if available, otherwise create basic entry
                 if [[ -f "$CONFIG_DIR/system/network/hosts.template" ]]; then
                     export HOSTNAME="$new_hostname"
                     export DOMAIN="$domain"
-                    export FQDN="$new_hostname.$domain"
-                    export IP_ADDRESS="127.0.1.1"  # Default local IP for hostname resolution
-                    process_config_template "$CONFIG_DIR/system/network/hosts.template" "/etc/hosts" "HOSTNAME DOMAIN FQDN IP_ADDRESS"
+                    export FQDN="$fqdn"
+                    process_config_template "$CONFIG_DIR/system/network/hosts.template" "/etc/hosts" "HOSTNAME DOMAIN FQDN"
                 else
                     # Basic hosts file update
                     sed -i '/^127\.0\.1\.1/d' /etc/hosts
-                    echo "127.0.1.1 $new_hostname.$domain $new_hostname" >> /etc/hosts
+                    echo "127.0.1.1 $fqdn $new_hostname" >> /etc/hosts
                 fi
             else
                 # Handle case where only hostname is set (no domain)
-                if [[ "$DRY_RUN" == "false" ]]; then
-                    sed -i '/^127\.0\.1\.1/d' /etc/hosts
-                    echo "127.0.1.1 $new_hostname" >> /etc/hosts
-                fi
+                hostnamectl set-hostname "$new_hostname"
+                sed -i '/^127\.0\.1\.1/d' /etc/hosts
+                echo "127.0.1.1 $new_hostname" >> /etc/hosts
             fi
             
             success "Hostname configured: $new_hostname"
@@ -208,11 +208,7 @@ configure_apt_production() {
         # Install production APT configuration
         atomic_install "$CONFIG_DIR/applications/apt/apt-production.conf" "/etc/apt/apt.conf.d/99-production" "644" "root:root"
         
-        # Install unattended upgrades package if not present
-        if ! dpkg -l unattended-upgrades >/dev/null 2>&1; then
-            info "Installing unattended-upgrades package..."
-            apt-get install -y unattended-upgrades
-        fi
+        # unattended-upgrades package should already be installed by centralized package manager
         
         # Install unattended upgrades configuration
         atomic_install "$CONFIG_DIR/applications/apt/unattended-upgrades.conf" "/etc/apt/apt.conf.d/50-unattended-upgrades" "644" "root:root"

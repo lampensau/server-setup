@@ -68,8 +68,7 @@ install_docker_ce_hardened() {
         # Remove any existing Docker installations
         apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
         
-        # Install prerequisites
-        apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+        # Prerequisites already installed by centralized package manager
         
         # Add Docker's official GPG key (detect OS first)
         curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg

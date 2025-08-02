@@ -60,17 +60,10 @@ apply_standard_security() {
             configure_basic_firewall
         fi
         
-        # Process accounting for auditing
-        if ! dpkg -l | grep -q acct; then
-            apt-get install -y acct
-            systemctl enable --now acct
-        fi
+        # Process accounting for auditing (package installed by centralized manager)
+        systemctl enable --now acct
         
-        # Install unattended upgrades package if not present
-        if ! dpkg -l unattended-upgrades >/dev/null 2>&1; then
-            info "Installing unattended-upgrades package..."
-            apt-get install -y unattended-upgrades
-        fi
+        # unattended-upgrades package already installed by centralized package manager
         
         # Install and configure unattended upgrades for security updates
         atomic_install "$CONFIG_DIR/applications/apt/unattended-upgrades.conf" "/etc/apt/apt.conf.d/50-unattended-upgrades" "644" "root:root"

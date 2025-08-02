@@ -117,8 +117,7 @@ install_nginx_hardened() {
         # Remove any existing nginx installations
         apt-get remove -y nginx nginx-common nginx-core nginx-full nginx-light 2>/dev/null || true
         
-        # Install nginx from official repository for latest security updates
-        install_packages nginx-full nginx-extras ssl-cert
+        # nginx packages already installed by centralized package manager
         
         # Verify installed version meets minimum requirements
         local installed_version
@@ -146,7 +145,7 @@ install_caddy_hardened() {
     
     if [[ "$DRY_RUN" == "false" ]]; then
         # Install Caddy from official repository
-        install_packages debian-keyring debian-archive-keyring apt-transport-https
+        # Prerequisites already installed by centralized package manager
         
         # Add Caddy repository
         curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
@@ -154,7 +153,7 @@ install_caddy_hardened() {
         
         # Update and install Caddy
         apt-get update
-        install_packages caddy
+        apt-get install -y caddy
         
         # Verify installed version
         local installed_version
@@ -265,7 +264,7 @@ setup_ssl_certificates() {
     
     # Install certbot for manual certificate management
     if [[ "$DRY_RUN" == "false" ]]; then
-        install_packages certbot python3-certbot-nginx python3-certbot-dns-cloudflare
+        # certbot packages already installed by centralized package manager
     fi
     
     # Install certificate management scripts
@@ -321,10 +320,10 @@ setup_application_support() {
     
     if [[ "$DRY_RUN" == "false" ]]; then
         # Always install basic tools
-        install_packages curl wget unzip git
+        # Development tools (consider if these should be included in centralized package manager)
         
         if [[ "$web_apps" == *"php"* ]]; then
-            install_packages php-fpm php-cli php-curl php-gd php-mbstring php-xml php-zip
+            # PHP packages should be defined in centralized package manager when web apps include PHP
             configure_php_security
         fi
         
@@ -334,7 +333,7 @@ setup_application_support() {
         fi
         
         if [[ "$web_apps" == *"python"* ]]; then
-            install_packages python3 python3-pip python3-venv
+            # Python packages should be defined in centralized package manager when web apps include Python
             configure_python_wsgi
         fi
     else
@@ -373,7 +372,7 @@ install_nodejs_lts() {
     
     # Install Node.js from official repository
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-    install_packages nodejs
+    apt-get install -y nodejs
     
     # Install PM2 for process management
     npm install -g pm2

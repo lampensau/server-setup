@@ -1,3 +1,2 @@
 127.0.0.1 localhost localhost.localdomain
-127.0.1.1 ${HOSTNAME}
-${IP_ADDRESS} ${FQDN} ${HOSTNAME}
+127.0.1.1 ${FQDN} ${HOSTNAME}

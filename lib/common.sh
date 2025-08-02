@@ -286,6 +286,136 @@ check_dependencies() {
     success "All dependencies are available."
 }
 
+# Centralized package management - determine all packages needed for configuration
+determine_required_packages() {
+    local packages=()
+    
+    # Base packages always needed
+    packages+=(
+        "unattended-upgrades"
+        "rsyslog"
+    )
+    
+    # Security packages based on profile
+    if [[ "${SECURITY_PROFILE}" != "minimal" ]]; then
+        packages+=(
+            "acct"
+            "fail2ban"
+        )
+    fi
+    
+    # AppArmor packages for hardened profile
+    if [[ "${SECURITY_PROFILE}" == "hardened" ]]; then
+        packages+=(
+            "apparmor-profiles"
+            "apparmor-utils" 
+            "apparmor-notify"
+        )
+    fi
+    
+    # Server type specific packages
+    case "${SERVER_TYPE}" in
+        "docker")
+            packages+=(
+                "apt-transport-https"
+                "ca-certificates"
+                "curl"
+                "gnupg"
+                "lsb-release"
+            )
+            # Docker packages will be installed from Docker's repository separately
+            ;;
+        "web")
+            packages+=(
+                "nginx-full"
+                "nginx-extras"
+                "ssl-cert"
+                "certbot"
+                "python3-certbot-nginx"
+                "python3-certbot-dns-cloudflare"
+            )
+            ;;
+    esac
+    
+    # SSH setup packages (if SSH mode is enabled)
+    if [[ "${SETUP_MODE:-both}" == "ssh" || "${SETUP_MODE:-both}" == "both" ]]; then
+        packages+=(
+            "openssh-server"
+            "openssh-client"
+        )
+    fi
+    
+    # Remove duplicates and return
+    printf "%s\n" "${packages[@]}" | sort -u
+}
+
+# Install all required packages in one operation
+install_required_packages() {
+    info "Determining required packages for configuration..."
+    
+    local packages=($(determine_required_packages))
+    local packages_to_install=()
+    
+    # Check which packages are not installed
+    for package in "${packages[@]}"; do
+        if ! dpkg -l "$package" >/dev/null 2>&1; then
+            packages_to_install+=("$package")
+        fi
+    done
+    
+    if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+        info "Installing required packages: ${packages_to_install[*]}"
+        
+        if [[ "$DRY_RUN" == "false" ]]; then
+            apt-get update
+            if ! apt-get install -y "${packages_to_install[@]}"; then
+                error "Failed to install required packages"
+                return 1
+            fi
+            success "Successfully installed ${#packages_to_install[@]} packages"
+        else
+            info "[DRY RUN] Would install packages: ${packages_to_install[*]}"
+        fi
+    else
+        info "All required packages are already installed"
+    fi
+}
+
+# Generic package installation function (for use by specific modules)
+install_packages() {
+    local packages=("$@")
+    
+    if [[ ${#packages[@]} -eq 0 ]]; then
+        warn "No packages specified for installation"
+        return 0
+    fi
+    
+    local packages_to_install=()
+    
+    # Check which packages are not installed
+    for package in "${packages[@]}"; do
+        if ! dpkg -l "$package" >/dev/null 2>&1; then
+            packages_to_install+=("$package")
+        fi
+    done
+    
+    if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+        info "Installing packages: ${packages_to_install[*]}"
+        
+        if [[ "$DRY_RUN" == "false" ]]; then
+            if ! apt-get install -y "${packages_to_install[@]}"; then
+                error "Failed to install packages: ${packages_to_install[*]}"
+                return 1
+            fi
+            success "Successfully installed: ${packages_to_install[*]}"
+        else
+            info "[DRY RUN] Would install packages: ${packages_to_install[*]}"
+        fi
+    else
+        info "Packages already installed: ${packages[*]}"
+    fi
+}
+
 # Check OpenSSH version (for SSH mode)
 check_openssh_version() {
     if [[ "${SETUP_MODE:-both}" == "ssh" || "${SETUP_MODE:-both}" == "both" ]]; then
@@ -411,10 +541,9 @@ update_system() {
         apt-get update
         apt-get upgrade -y
         
-        # Install essential logging system
+        # Enable essential logging system (package installed by centralized manager)
         if ! systemctl is-active --quiet rsyslog 2>/dev/null; then
-            info "Installing rsyslog for enhanced logging..."
-            apt-get install -y rsyslog
+            info "Enabling rsyslog for enhanced logging..."
             systemctl enable --now rsyslog
         fi
     else

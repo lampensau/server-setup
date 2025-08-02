@@ -161,6 +161,7 @@ main() {
     # Phase 1: System Preparation
     info "=== Phase 1: System Preparation ==="
     update_system
+    install_required_packages
     
     # Phase 2: System Configuration (if enabled)
     if [[ "${SETUP_MODE:-both}" == "system" || "${SETUP_MODE:-both}" == "both" ]]; then
