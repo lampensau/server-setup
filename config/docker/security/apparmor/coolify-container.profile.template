@@ -5,11 +5,12 @@ profile coolify-container flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/nameservice>
   #include <abstractions/ssl_certs>
 
-  network inet tcp,
-  network inet udp,
-  network inet6 tcp,
-  network inet6 udp,
-  network unix,
+  network inet stream,
+  network inet dgram,
+  # IPv6 network rules (conditional based on DISABLE_IPV6 setting)
+  network inet6 stream,
+  network inet6 dgram,
+  network unix stream,
 
   capability net_bind_service,
   capability setuid,

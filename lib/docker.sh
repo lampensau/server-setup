@@ -206,8 +206,21 @@ configure_apparmor_docker_profiles() {
     atomic_install "$CONFIG_DIR/docker/security/apparmor/docker-hardened.profile" \
                    "/etc/apparmor.d/docker-hardened" "644" "root:root"
     
-    atomic_install "$CONFIG_DIR/docker/security/apparmor/coolify-container.profile" \
-                   "/etc/apparmor.d/coolify-container" "644" "root:root"
+    # Process the AppArmor template with IPv6 conditional logic
+    local temp_profile=$(mktemp)
+    
+    if [[ "${DISABLE_IPV6:-false}" == "true" ]]; then
+        # Remove IPv6 network rules when IPv6 is disabled
+        sed '/# IPv6 network rules/,/network inet6 dgram,/d' \
+            "$CONFIG_DIR/docker/security/apparmor/coolify-container.profile.template" > "$temp_profile"
+    else
+        # Keep all network rules when IPv6 is enabled
+        cp "$CONFIG_DIR/docker/security/apparmor/coolify-container.profile.template" "$temp_profile"
+    fi
+    
+    # Install the processed profile
+    atomic_install "$temp_profile" "/etc/apparmor.d/coolify-container" "644" "root:root"
+    rm -f "$temp_profile"
     
     if [[ "$DRY_RUN" == "false" ]]; then
         # Load the profiles
