@@ -176,45 +176,16 @@ configure_docker_daemon_security_post_coolify() {
         # Apply maximum security hardening to Coolify's daemon.json while preserving functionality
         # This configuration provides enterprise-grade security without breaking Coolify
         if [[ -f /etc/docker/daemon.json ]] && command -v jq >/dev/null 2>&1; then
-            # Check if seccomp profile exists
-            local seccomp_config=""
-            if [[ -f "/etc/docker/seccomp-hardened.json" ]]; then
-                seccomp_config=', "seccomp-profile": "/etc/docker/seccomp-hardened.json"'
-            fi
+            # Merge Coolify's config with our static hardened config (NO INLINE CONFIG!)
+            local coolify_config="/etc/docker/daemon.json"
+            local static_config="$hardened_config"
             
-            # Create maximum security configuration compatible with Coolify
-            jq --argjson seccomp_exists "$(test -f /etc/docker/seccomp-hardened.json && echo true || echo false)" '. + {
-                "userns-remap": "default",
-                "no-new-privileges": true,
-                "live-restore": true,
-                "userland-proxy": false,
-                "icc": false,
-                "ip-forward": true,
-                "iptables": true,
-                "storage-driver": "overlay2",
-                "storage-opts": [
-                    "overlay2.override_kernel_check=true"
-                ],
-                "log-driver": "json-file",
-                "log-opts": {
-                    "max-size": "10m",
-                    "max-file": "3"
-                },
-                "default-ulimits": {
-                    "nofile": {
-                        "Hard": 64000,
-                        "Name": "nofile", 
-                        "Soft": 64000
-                    },
-                    "nproc": {
-                        "Hard": 32768,
-                        "Name": "nproc",
-                        "Soft": 16384
-                    }
-                },
-                "exec-opts": ["native.cgroupdriver=systemd"],
-                "dns": ["1.1.1.1", "1.0.0.1"]
-            } + (if $seccomp_exists then {"seccomp-profile": "/etc/docker/seccomp-hardened.json"} else {} end)' /etc/docker/daemon.json > "$temp_merged"
+            # Use jq to merge static config over Coolify config, preserving Coolify's network settings
+            jq -s '.[0] * .[1] | 
+                   if .[0]["default-address-pools"] then 
+                       .["default-address-pools"] = .[0]["default-address-pools"] 
+                   else . end' \
+                   "$coolify_config" "$static_config" > "$temp_merged"
             
             # Validate merged JSON and test Docker daemon compatibility
             if jq . "$temp_merged" >/dev/null 2>&1; then
