@@ -65,9 +65,11 @@ configure_persistent_logging() {
         systemctl restart systemd-journald
         
         # Install rsyslog configuration for log separation if available
-        if [[ -f "$CONFIG_DIR/applications/logging/rsyslog-separation.conf" ]]; then
+        if [[ -f "$CONFIG_DIR/applications/logging/rsyslog-separation.conf" ]] && systemctl is-active --quiet rsyslog 2>/dev/null; then
             atomic_install "$CONFIG_DIR/applications/logging/rsyslog-separation.conf" "/etc/rsyslog.d/10-separation.conf" "644" "root:root"
             systemctl restart rsyslog
+        elif [[ -f "$CONFIG_DIR/applications/logging/rsyslog-separation.conf" ]]; then
+            info "rsyslog not available - skipping log separation configuration"
         fi
         
         success "Persistent logging configured"

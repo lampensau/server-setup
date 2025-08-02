@@ -21,10 +21,10 @@ if [ -z "${MODERN_MACS-}" ]; then readonly MODERN_MACS="hmac-sha2-512-etm@openss
 if [ -z "${MODERN_HOSTKEY_ALGORITHMS-}" ]; then readonly MODERN_HOSTKEY_ALGORITHMS="ssh-ed25519"; fi
 if [ -z "${MODERN_PUBKEY_ALGORITHMS-}" ]; then readonly MODERN_PUBKEY_ALGORITHMS="ssh-ed25519"; fi
 
-# SSH Configuration options with defaults
-if [ -z "${ALLOW_AGENT_FORWARDING-}" ]; then readonly ALLOW_AGENT_FORWARDING="${ALLOW_AGENT_FORWARDING:-yes}"; fi
-if [ -z "${ALLOW_TCP_FORWARDING-}" ]; then readonly ALLOW_TCP_FORWARDING="${ALLOW_TCP_FORWARDING:-yes}"; fi
-if [ -z "${ENABLE_USER_GROUPS-}" ]; then readonly ENABLE_USER_GROUPS="${ENABLE_USER_GROUPS:-false}"; fi
+# SSH Configuration options with defaults (can be overridden by local.conf)
+if [ -z "${ALLOW_AGENT_FORWARDING-}" ]; then ALLOW_AGENT_FORWARDING="yes"; fi
+if [ -z "${ALLOW_TCP_FORWARDING-}" ]; then ALLOW_TCP_FORWARDING="yes"; fi
+if [ -z "${ENABLE_USER_GROUPS-}" ]; then ENABLE_USER_GROUPS="false"; fi
 
 # Package lists for removal (can be overridden by local config)
 if [ -z "${DEVEL_PACKAGES-}" ]; then 
