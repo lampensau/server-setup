@@ -297,11 +297,11 @@ install_coolify_hardened() {
         # Verify Coolify installation
         local retry_count=0
         while [[ $retry_count -lt 30 ]]; do
-            if systemctl is-active --quiet coolify 2>/dev/null; then
-                success "Coolify service is running"
+            if [[ -f /data/coolify/source/.env ]] && curl -s http://localhost:8000 >/dev/null 2>&1; then
+                success "Coolify is running and accessible"
                 break
             elif [[ -f /data/coolify/source/.env ]]; then
-                info "Coolify installed but service not yet active (attempt $((retry_count + 1))/30)"
+                info "Coolify installed but not yet accessible (attempt $((retry_count + 1))/30)"
                 sleep 5
                 ((retry_count++))
             else
@@ -361,8 +361,12 @@ configure_coolify_security() {
                                        "COOLIFY_DOMAIN"
             fi
             
-            # Restart Coolify to apply changes
-            systemctl restart coolify || warn "Could not restart Coolify service"
+            # Restart Coolify containers to apply changes
+            if command -v docker >/dev/null 2>&1; then
+                cd /data/coolify/source && docker compose restart || warn "Could not restart Coolify containers"
+            else
+                warn "Docker not available - Coolify restart skipped"
+            fi
         else
             warn "Coolify environment file not found - manual security configuration required"
         fi
