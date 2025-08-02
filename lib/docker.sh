@@ -69,7 +69,7 @@ install_docker_ce_hardened() {
         apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
         
         # Install prerequisites
-        install_packages apt-transport-https ca-certificates curl gnupg lsb-release
+        apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
         
         # Add Docker's official GPG key
         curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
@@ -81,7 +81,7 @@ install_docker_ce_hardened() {
         apt-get update
         
         # Install latest Docker CE with required components
-        install_packages docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         
         # Verify installed version meets minimum requirements
         local installed_version
