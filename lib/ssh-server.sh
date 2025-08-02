@@ -124,8 +124,10 @@ test_ssh_config() {
     fi
     
     # Test configuration syntax
-    if ! sshd -T >/dev/null 2>&1; then
+    local sshd_test_output=$(sshd -T 2>&1)
+    if [[ $? -ne 0 ]]; then
         error "SSH server configuration test failed!"
+        error "sshd -T output: $sshd_test_output"
         return 1
     fi
     
