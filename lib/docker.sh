@@ -15,9 +15,8 @@ apply_docker_profile_complete() {
     # Pre-flight checks
     check_docker_prerequisites
     
-    # Core Docker installation and hardening
+    # Core Docker installation (basic daemon config only)
     install_docker_ce_hardened
-    configure_docker_daemon_security
     setup_docker_user_namespaces
     apply_cve_2024_41110_mitigations
     
@@ -26,9 +25,12 @@ apply_docker_profile_complete() {
     setup_seccomp_profiles
     configure_docker_networks
     
-    # Coolify installation (default for Docker profile)
+    # Coolify installation (this may overwrite daemon.json)
     install_coolify_hardened
     configure_coolify_security
+    
+    # Apply hardened daemon configuration AFTER Coolify (merging configurations)
+    configure_docker_daemon_security_post_coolify
     
     # Monitoring and compliance
     setup_docker_monitoring
@@ -64,8 +66,18 @@ check_docker_prerequisites() {
 install_docker_ce_hardened() {
     info "Installing Docker CE with security hardening (minimum version: $MIN_DOCKER_VERSION)"
     
+    # Check if Docker CE is already installed with sufficient version
+    if command -v docker >/dev/null 2>&1; then
+        local current_version
+        current_version=$(docker --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+        if [[ -n "$current_version" ]] && version_greater_equal "$current_version" "$MIN_DOCKER_VERSION"; then
+            info "Docker CE $current_version is already installed and meets minimum requirements"
+            return 0
+        fi
+    fi
+    
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Remove any existing Docker installations
+        # Remove any existing Docker installations (old versions or different packages)
         apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
         
         # Prerequisites already installed by centralized package manager
@@ -136,6 +148,62 @@ configure_docker_daemon_security() {
                    "/etc/systemd/system/docker.socket.d/override.conf" "644" "root:root"
     
     success "Docker daemon security configuration applied"
+}
+
+# Configure Docker daemon security after Coolify installation (merge configurations)
+configure_docker_daemon_security_post_coolify() {
+    info "Applying hardened Docker daemon configuration (post-Coolify)"
+    
+    if [[ "$DRY_RUN" == "false" ]]; then
+        # Backup current daemon.json (created by Coolify)
+        if [[ -f /etc/docker/daemon.json ]]; then
+            cp /etc/docker/daemon.json /etc/docker/daemon.json.coolify-backup
+        fi
+        
+        # Create merged configuration using jq
+        local hardened_config temp_merged
+        case "$SECURITY_PROFILE" in
+            "hardened")
+                hardened_config="$CONFIG_DIR/docker/daemon/daemon-hardened.json"
+                ;;
+            *)
+                hardened_config="$CONFIG_DIR/docker/daemon/daemon-standard.json"
+                ;;
+        esac
+        
+        temp_merged=$(mktemp)
+        
+        # Merge Coolify's daemon.json with hardened configuration
+        # Hardened config takes precedence, but preserve Coolify's essential settings
+        if [[ -f /etc/docker/daemon.json ]] && command -v jq >/dev/null 2>&1; then
+            # Use jq to merge, with hardened config taking precedence
+            jq -s '.[1] * .[0]' "$hardened_config" /etc/docker/daemon.json > "$temp_merged"
+            
+            # Validate merged JSON
+            if jq . "$temp_merged" >/dev/null 2>&1; then
+                cp "$temp_merged" /etc/docker/daemon.json
+                info "Merged Coolify and hardened daemon configurations"
+            else
+                warn "JSON merge failed, applying hardened config only"
+                cp "$hardened_config" /etc/docker/daemon.json
+            fi
+        else
+            # Fallback: just apply hardened config
+            cp "$hardened_config" /etc/docker/daemon.json
+            info "Applied hardened daemon configuration (jq not available for merge)"
+        fi
+        
+        rm -f "$temp_merged"
+        
+        # Set proper permissions
+        chmod 644 /etc/docker/daemon.json
+        chown root:root /etc/docker/daemon.json
+        
+    else
+        info "[DRY RUN] Would merge Coolify and hardened daemon configurations"
+    fi
+    
+    success "Hardened daemon configuration applied post-Coolify"
 }
 
 # CVE-2024-41110 Specific Mitigations
@@ -266,6 +334,12 @@ configure_docker_networks() {
 # Coolify Installation (Default for Docker Profile)
 install_coolify_hardened() {
     info "Installing Coolify with security hardening"
+    
+    # Check if Coolify is already installed
+    if [[ -f /data/coolify/source/.env ]] || systemctl is-active --quiet coolify 2>/dev/null; then
+        info "Coolify is already installed, skipping installation"
+        return 0
+    fi
     
     # Generate secure environment variables for Coolify
     if [[ "$DRY_RUN" == "false" ]]; then

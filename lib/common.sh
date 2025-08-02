@@ -322,6 +322,7 @@ determine_required_packages() {
                 "curl"
                 "gnupg"
                 "lsb-release"
+                "jq"
             )
             # Docker packages will be installed from Docker's repository separately
             ;;
