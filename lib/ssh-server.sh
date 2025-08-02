@@ -48,6 +48,14 @@ configure_ssh_server() {
         # Create modular config directory
         mkdir -p /etc/ssh/sshd_config.d
         
+        # Remove cloud-init SSH configurations that enable password authentication
+        for cloud_conf in /etc/ssh/sshd_config.d/*cloud*.conf; do
+            if [[ -f "$cloud_conf" ]]; then
+                info "Removing insecure cloud-init SSH config: $(basename "$cloud_conf")"
+                rm -f "$cloud_conf"
+            fi
+        done
+        
         # Install security configuration
         local temp_security_conf=$(mktemp)
         envsubst < "$CONFIG_DIR/ssh/server/01-security.conf" > "$temp_security_conf"

@@ -736,12 +736,18 @@ test_docker_config() {
         fi
         
         # Test security features (compatible with hardened setup)
-        if timeout 30s docker run --rm --user 1000:1000 --security-opt no-new-privileges:true --read-only alpine:latest /bin/true >/dev/null 2>&1; then
-            success "✓ Container security options working with hardened config"
-        elif timeout 30s docker run --rm --security-opt no-new-privileges:true alpine:latest /bin/true >/dev/null 2>&1; then
-            success "✓ Container security options working (standard mode)"
+        # Pull alpine image first to avoid timeout issues
+        if docker pull alpine:latest >/dev/null 2>&1; then
+            if timeout 30s docker run --rm --user 1000:1000 --security-opt no-new-privileges:true --read-only alpine:latest /bin/true >/dev/null 2>&1; then
+                success "✓ Container security options working with hardened config"
+            elif timeout 30s docker run --rm --security-opt no-new-privileges:true alpine:latest /bin/true >/dev/null 2>&1; then
+                success "✓ Container security options working (standard mode)"
+            else
+                warn "⚠ Container security options test failed"
+                test_failures=$((test_failures + 1))
+            fi
         else
-            warn "⚠ Container security options test failed"
+            warn "⚠ Could not pull alpine image for security test"
             test_failures=$((test_failures + 1))
         fi
         
