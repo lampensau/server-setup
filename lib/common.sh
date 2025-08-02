@@ -319,6 +319,11 @@ atomic_install() {
         return 1
     fi
 
+    # Ensure destination directory exists
+    local dest_dir
+    dest_dir="$(dirname "$dest")"
+    mkdir -p "$dest_dir"
+
     local tmp_dest
     tmp_dest="$(mktemp "${dest}.XXXXXX")"
     cp "$src" "$tmp_dest"
