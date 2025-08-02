@@ -97,11 +97,18 @@ configure_hostname() {
                     export HOSTNAME="$new_hostname"
                     export DOMAIN="$domain"
                     export FQDN="$new_hostname.$domain"
-                    process_config_template "$CONFIG_DIR/system/network/hosts.template" "/etc/hosts" "HOSTNAME DOMAIN FQDN"
+                    export IP_ADDRESS="127.0.1.1"  # Default local IP for hostname resolution
+                    process_config_template "$CONFIG_DIR/system/network/hosts.template" "/etc/hosts" "HOSTNAME DOMAIN FQDN IP_ADDRESS"
                 else
                     # Basic hosts file update
                     sed -i '/^127\.0\.1\.1/d' /etc/hosts
                     echo "127.0.1.1 $new_hostname.$domain $new_hostname" >> /etc/hosts
+                fi
+            else
+                # Handle case where only hostname is set (no domain)
+                if [[ "$DRY_RUN" == "false" ]]; then
+                    sed -i '/^127\.0\.1\.1/d' /etc/hosts
+                    echo "127.0.1.1 $new_hostname" >> /etc/hosts
                 fi
             fi
             
