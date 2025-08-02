@@ -334,9 +334,10 @@ process_config_template() {
     local required_vars="$3"
 
     # Validate required variables are set
-    # Convert space-separated string to array for proper iteration
-    local vars_array=($required_vars)
-    for var in "${vars_array[@]}"; do
+    # Split the space-separated variable names and validate each
+    local IFS=' '
+    read -ra var_list <<< "$required_vars"
+    for var in "${var_list[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             error "Required variable $var not set for template $template"
             return 1
@@ -398,8 +399,15 @@ update_system() {
     if [[ "$DRY_RUN" == "false" ]]; then
         apt-get update
         apt-get upgrade -y
+        
+        # Install essential logging system
+        if ! systemctl is-active --quiet rsyslog 2>/dev/null; then
+            info "Installing rsyslog for enhanced logging..."
+            apt-get install -y rsyslog
+            systemctl enable --now rsyslog
+        fi
     else
-        info "[DRY RUN] Would update system packages"
+        info "[DRY RUN] Would update system packages and install rsyslog"
     fi
     success "System packages updated"
 }
