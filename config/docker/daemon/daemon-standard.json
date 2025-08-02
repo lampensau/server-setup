@@ -1,9 +1,6 @@
 {
   "userns-remap": "default",
   "storage-driver": "overlay2",
-  "storage-opts": [
-    "overlay2.override_kernel_check=true"
-  ],
   "icc": false,
   "live-restore": true,
   "no-new-privileges": true,
@@ -22,6 +19,6 @@
   },
   "userland-proxy": false,
   "experimental": false,
-  "ip-forward": false,
+  "ip-forward": true,
   "iptables": true
 }
