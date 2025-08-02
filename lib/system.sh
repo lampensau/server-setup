@@ -208,6 +208,12 @@ configure_apt_production() {
         # Install production APT configuration
         atomic_install "$CONFIG_DIR/applications/apt/apt-production.conf" "/etc/apt/apt.conf.d/99-production" "644" "root:root"
         
+        # Install unattended upgrades package if not present
+        if ! dpkg -l unattended-upgrades >/dev/null 2>&1; then
+            info "Installing unattended-upgrades package..."
+            apt-get install -y unattended-upgrades
+        fi
+        
         # Install unattended upgrades configuration
         atomic_install "$CONFIG_DIR/applications/apt/unattended-upgrades.conf" "/etc/apt/apt.conf.d/50-unattended-upgrades" "644" "root:root"
         

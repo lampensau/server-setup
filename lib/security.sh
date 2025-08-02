@@ -66,6 +66,12 @@ apply_standard_security() {
             systemctl enable --now acct
         fi
         
+        # Install unattended upgrades package if not present
+        if ! dpkg -l unattended-upgrades >/dev/null 2>&1; then
+            info "Installing unattended-upgrades package..."
+            apt-get install -y unattended-upgrades
+        fi
+        
         # Install and configure unattended upgrades for security updates
         atomic_install "$CONFIG_DIR/applications/apt/unattended-upgrades.conf" "/etc/apt/apt.conf.d/50-unattended-upgrades" "644" "root:root"
         systemctl enable --now unattended-upgrades
