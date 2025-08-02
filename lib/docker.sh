@@ -687,10 +687,12 @@ start_docker_services() {
             bash /etc/docker/networks.conf || warn "Some Docker networks may not have been created"
         fi
         
-        # Test Docker installation
+        # Test Docker installation (compatible with hardened security)
         info "Testing Docker installation..."
-        if timeout 60s docker run --rm hello-world >/dev/null 2>&1; then
+        if timeout 60s docker run --rm alpine:latest /bin/true >/dev/null 2>&1; then
             success "Docker installation verified"
+        elif timeout 60s docker run --rm --user 1000:1000 alpine:latest /bin/true >/dev/null 2>&1; then
+            success "Docker installation verified (hardened mode)"
         else
             warn "Docker test failed - manual verification required"
             warn "This may be due to user namespace remapping - Docker functionality may still work"
@@ -722,21 +724,25 @@ test_docker_config() {
             success "✓ User namespace remapping is active"
         else
             warn "⚠ User namespace remapping may not be active"
-            ((test_failures++))
+            test_failures=$((test_failures + 1))
         fi
         
-        if echo "$daemon_config" | grep -q "live-restore"; then
+        if echo "$daemon_config" | jq -e '.LiveRestoreEnabled == true' >/dev/null 2>&1; then
+            success "✓ Live restore is enabled"
+        elif docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null | grep -q true; then
             success "✓ Live restore is enabled"
         else
-            warn "⚠ Live restore not detected"
+            warn "⚠ Live restore not detected (may be enabled but not reported)"
         fi
         
-        # Test security features
-        if timeout 30s docker run --rm --security-opt no-new-privileges:true alpine:latest echo "Security test passed" >/dev/null 2>&1; then
-            success "✓ Container security options working"
+        # Test security features (compatible with hardened setup)
+        if timeout 30s docker run --rm --user 1000:1000 --security-opt no-new-privileges:true --read-only alpine:latest /bin/true >/dev/null 2>&1; then
+            success "✓ Container security options working with hardened config"
+        elif timeout 30s docker run --rm --security-opt no-new-privileges:true alpine:latest /bin/true >/dev/null 2>&1; then
+            success "✓ Container security options working (standard mode)"
         else
             warn "⚠ Container security options test failed"
-            ((test_failures++))
+            test_failures=$((test_failures + 1))
         fi
         
         # Test Docker networks
