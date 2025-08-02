@@ -64,8 +64,10 @@ configure_ssh_server() {
         fi
         
         # Test SSH configuration before applying
-        if ! sshd -T >/dev/null 2>&1; then
+        local sshd_test_output=$(sshd -T 2>&1)
+        if [[ $? -ne 0 ]]; then
             error "SSH configuration test failed!"
+            error "sshd -T output: $sshd_test_output"
             rollback_ssh_config $(date +%Y%m%d)
             return 1
         fi
