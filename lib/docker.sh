@@ -442,9 +442,22 @@ start_docker_services() {
         # Reload systemd configuration
         systemctl daemon-reload
         
-        # Start Docker services
-        systemctl start docker
-        systemctl start containerd
+        # Start or restart Docker services to apply configuration changes
+        if systemctl is-active --quiet docker; then
+            info "Docker is running - restarting to apply configuration changes"
+            systemctl restart docker
+        else
+            info "Starting Docker service"
+            systemctl start docker
+        fi
+        
+        if systemctl is-active --quiet containerd; then
+            info "Containerd is running - restarting to apply configuration changes"
+            systemctl restart containerd
+        else
+            info "Starting containerd service"
+            systemctl start containerd
+        fi
         
         # Verify Docker is running
         if systemctl is-active --quiet docker; then
