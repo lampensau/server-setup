@@ -1,0 +1,87 @@
+{
+  "network-security": {
+    "default-bridge": {
+      "enable": false,
+      "icc": false,
+      "ip-masq": false
+    },
+    "custom-networks": {
+      "isolation": true,
+      "internal-communication": false,
+      "external-access": "restricted"
+    },
+    "dns-security": {
+      "custom-dns": [
+        "1.1.1.1",
+        "1.0.0.1"
+      ],
+      "dns-search": [],
+      "dns-options": [
+        "timeout:2",
+        "attempts:1"
+      ]
+    },
+    "port-security": {
+      "bind-to-localhost": true,
+      "random-port-range": "32768-65535",
+      "expose-docker-socket": false
+    },
+    "traffic-filtering": {
+      "ingress-rules": [
+        {
+          "protocol": "tcp",
+          "port-range": "80,443",
+          "source": "any",
+          "action": "allow"
+        },
+        {
+          "protocol": "tcp", 
+          "port-range": "8000",
+          "source": "127.0.0.1",
+          "action": "allow"
+        }
+      ],
+      "egress-rules": [
+        {
+          "protocol": "tcp",
+          "port-range": "80,443",
+          "destination": "any",
+          "action": "allow"
+        },
+        {
+          "protocol": "tcp",
+          "port-range": "53",
+          "destination": "1.1.1.1,1.0.0.1",
+          "action": "allow"
+        },
+        {
+          "protocol": "udp",
+          "port-range": "53",
+          "destination": "1.1.1.1,1.0.0.1", 
+          "action": "allow"
+        }
+      ]
+    },
+    "network-monitoring": {
+      "log-connections": true,
+      "log-dropped-packets": true,
+      "connection-tracking": true
+    }
+  },
+  "container-networking": {
+    "default-networks": [
+      "dmz-network",
+      "app-network", 
+      "data-network",
+      "coolify-network"
+    ],
+    "network-aliases": {
+      "restrict-hostname-resolution": true,
+      "custom-hosts": {}
+    },
+    "ipv6": {
+      "enabled": false,
+      "disable-ipv6": true
+    }
+  }
+}

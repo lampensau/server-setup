@@ -1,0 +1,32 @@
+{
+  "content-trust": {
+    "enabled": true,
+    "repository_keys": "/etc/docker/trust/repository-keys",
+    "root_keys": "/etc/docker/trust/root-keys"
+  },
+  "image-verification": {
+    "require-signature": true,
+    "trusted-registries": [
+      "docker.io",
+      "registry-1.docker.io",
+      "ghcr.io",
+      "quay.io"
+    ],
+    "notary-config": {
+      "server-url": "https://notary.docker.io",
+      "root-dir": "/etc/docker/trust/notary"
+    }
+  },
+  "signature-verification": {
+    "algorithms": [
+      "ecdsa-x509",
+      "rsa-x509"
+    ],
+    "key-size-minimum": 2048
+  },
+  "registry-security": {
+    "tls-verify": true,
+    "insecure-registries": [],
+    "registry-mirrors": []
+  }
+}

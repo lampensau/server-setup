@@ -268,50 +268,57 @@ apply_external_docker_security_configs() {
         mkdir -p /etc/docker/seccomp
         mkdir -p /etc/docker/apparmor
         
+        # Install external static security configurations (files must exist)
+        
         # Install hardened seccomp profile
-        atomic_install "$CONFIG_DIR/docker/security/seccomp/docker-hardened.json" \
-                       "/etc/docker/seccomp-hardened.json" "644" "root:root"
+        if [[ -f "$CONFIG_DIR/docker/security/seccomp/docker-hardened.json" ]]; then
+            atomic_install "$CONFIG_DIR/docker/security/seccomp/docker-hardened.json" \
+                           "/etc/docker/seccomp-hardened.json" "644" "root:root"
+        else
+            warn "Seccomp profile not found: $CONFIG_DIR/docker/security/seccomp/docker-hardened.json"
+        fi
         
         # Install Docker-specific AppArmor profile
-        atomic_install "$CONFIG_DIR/docker/security/apparmor/docker-hardened.profile" \
-                       "/etc/apparmor.d/docker-hardened" "644" "root:root"
+        if [[ -f "$CONFIG_DIR/docker/security/apparmor/docker-hardened.profile" ]]; then
+            atomic_install "$CONFIG_DIR/docker/security/apparmor/docker-hardened.profile" \
+                           "/etc/apparmor.d/docker-hardened" "644" "root:root"
+        else
+            warn "AppArmor profile not found: $CONFIG_DIR/docker/security/apparmor/docker-hardened.profile"
+        fi
         
         # Install Coolify-specific security policies
-        atomic_install "$CONFIG_DIR/docker/security/policies/coolify-security.json" \
-                       "/etc/docker/policies/coolify-security.json" "644" "root:root"
+        if [[ -f "$CONFIG_DIR/docker/security/policies/coolify-security.json" ]]; then
+            atomic_install "$CONFIG_DIR/docker/security/policies/coolify-security.json" \
+                           "/etc/docker/policies/coolify-security.json" "644" "root:root"
+        else
+            warn "Coolify security policies not found: $CONFIG_DIR/docker/security/policies/coolify-security.json"
+        fi
         
-        # Install Docker audit rules for enhanced monitoring
+        # Install Docker audit rules
         if [[ -f "$CONFIG_DIR/docker/audit/docker-audit.rules" ]]; then
             atomic_install "$CONFIG_DIR/docker/audit/docker-audit.rules" \
                            "/etc/audit/rules.d/docker.rules" "644" "root:root"
-        fi
-        
-        # Configure Docker content trust for image verification
-        if [[ ! -f /etc/docker/daemon.json.d ]]; then
-            mkdir -p /etc/docker/daemon.json.d
+        else
+            warn "Docker audit rules not found: $CONFIG_DIR/docker/audit/docker-audit.rules"
         fi
         
         # Install content trust configuration
-        cat > /etc/docker/daemon.json.d/content-trust.json << 'EOF'
-{
-    "content-trust": {
-        "mode": "enforced",
-        "trust-pinning": true
-    },
-    "max-concurrent-downloads": 3,
-    "max-concurrent-uploads": 3
-}
-EOF
+        if [[ -f "$CONFIG_DIR/docker/security/content-trust.json" ]]; then
+            mkdir -p /etc/docker/daemon.json.d
+            atomic_install "$CONFIG_DIR/docker/security/content-trust.json" \
+                           "/etc/docker/daemon.json.d/content-trust.json" "644" "root:root"
+        else
+            warn "Content trust config not found: $CONFIG_DIR/docker/security/content-trust.json"
+        fi
         
         # Install network security configuration
-        cat > /etc/docker/daemon.json.d/network-security.json << 'EOF'
-{
-    "bridge": "docker0",
-    "fixed-cidr": "172.17.0.0/16",
-    "mtu": 1500,
-    "disable-legacy-registry": true
-}
-EOF
+        if [[ -f "$CONFIG_DIR/docker/security/network-security.json" ]]; then
+            mkdir -p /etc/docker/daemon.json.d
+            atomic_install "$CONFIG_DIR/docker/security/network-security.json" \
+                           "/etc/docker/daemon.json.d/network-security.json" "644" "root:root"
+        else
+            warn "Network security config not found: $CONFIG_DIR/docker/security/network-security.json"
+        fi
         
         # Configure Docker socket security
         if [[ -f "/var/run/docker.sock" ]]; then

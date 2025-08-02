@@ -1,0 +1,80 @@
+# Docker Security Audit Rules
+# Monitor Docker daemon and container security events
+
+# Docker daemon monitoring
+-w /usr/bin/dockerd -p wa -k docker_daemon
+-w /var/lib/docker -p wa -k docker_files
+-w /etc/docker -p wa -k docker_config
+-w /lib/systemd/system/docker.service -p wa -k docker_service
+-w /lib/systemd/system/docker.socket -p wa -k docker_socket
+-w /etc/default/docker -p wa -k docker_config
+-w /etc/sysconfig/docker -p wa -k docker_config
+
+# Docker configuration files
+-w /etc/docker/daemon.json -p wa -k docker_daemon_config
+-w /etc/docker/key.json -p wa -k docker_keys
+-w /etc/docker/seccomp-hardened.json -p wa -k docker_seccomp
+-w /etc/docker/policies/ -p wa -k docker_policies
+
+# Docker socket monitoring
+-w /var/run/docker.sock -p wa -k docker_socket_access
+-w /var/run/docker.pid -p wa -k docker_pid
+
+# Container runtime monitoring
+-a always,exit -F arch=b64 -S clone -F a0&0x7C00000 -F success=1 -k container_create
+-a always,exit -F arch=b32 -S clone -F a0&0x7C00000 -F success=1 -k container_create
+
+# Docker network monitoring
+-w /proc/sys/net/ipv4/ip_forward -p wa -k docker_network
+-w /proc/sys/net/ipv6/conf/all/forwarding -p wa -k docker_network
+
+# Docker volume monitoring  
+-w /var/lib/docker/volumes -p wa -k docker_volumes
+-w /var/lib/docker/containers -p wa -k docker_containers
+
+# Docker image monitoring
+-w /var/lib/docker/image -p wa -k docker_images
+-w /var/lib/docker/overlay2 -p wa -k docker_overlay
+
+# Docker registry operations
+-w /root/.docker -p wa -k docker_registry_auth
+
+# Container escape monitoring
+-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k container_mount
+-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k container_mount
+-a always,exit -F arch=b64 -S unshare -F success=1 -k container_namespace
+-a always,exit -F arch=b32 -S unshare -F success=1 -k container_namespace
+
+# Privileged container monitoring
+-a always,exit -F arch=b64 -S setuid -F success=1 -k privileged_container
+-a always,exit -F arch=b32 -S setuid -F success=1 -k privileged_container
+
+# Docker security events
+-a always,exit -F path=/usr/bin/docker -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_execution
+-a always,exit -F path=/usr/bin/dockerd -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_daemon_execution
+
+# Container capability changes
+-a always,exit -F arch=b64 -S capset -F success=1 -k container_capabilities
+-a always,exit -F arch=b32 -S capset -F success=1 -k container_capabilities
+
+# Docker secrets monitoring (if using Docker Swarm)
+-w /var/lib/docker/swarm -p wa -k docker_swarm_secrets
+
+# Coolify specific monitoring
+-w /data/coolify -p wa -k coolify_data
+-w /data/coolify/source/.env -p wa -k coolify_config
+-w /data/coolify/proxy -p wa -k coolify_proxy
+
+# AppArmor profile changes related to Docker
+-w /etc/apparmor.d/docker-hardened -p wa -k docker_apparmor
+-w /etc/apparmor.d/coolify-container -p wa -k coolify_apparmor
+
+# Seccomp profile monitoring
+-w /etc/docker/seccomp-hardened.json -p wa -k docker_seccomp_profile
+
+# Docker log files
+-w /var/log/docker.log -p wa -k docker_logs
+-w /var/log/docker-audit -p wa -k docker_audit_logs
+
+# Make the configuration immutable
+-e 2

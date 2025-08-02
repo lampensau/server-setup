@@ -1,0 +1,80 @@
+{
+  "name": "coolify-security-policy",
+  "description": "Maximum security policy for Coolify platform containers",
+  "version": "1.0",
+  "security": {
+    "no_new_privileges": true,
+    "readonly_rootfs": false,
+    "user_namespace": true,
+    "capabilities": {
+      "drop": [
+        "ALL"
+      ],
+      "add": [
+        "CHOWN",
+        "DAC_OVERRIDE",
+        "FOWNER",
+        "SETGID",
+        "SETUID",
+        "NET_BIND_SERVICE"
+      ]
+    },
+    "seccomp": {
+      "profile": "/etc/docker/seccomp-hardened.json",
+      "default_action": "SCMP_ACT_ERRNO"
+    },
+    "apparmor": {
+      "profile": "coolify-container",
+      "enforce": true
+    },
+    "resource_limits": {
+      "memory": "2g",
+      "cpu": "1.0",
+      "pid_limit": 1024,
+      "file_descriptor_limit": 1024
+    },
+    "network": {
+      "isolation": true,
+      "bridge": "coolify-network",
+      "port_binding": "127.0.0.1"
+    },
+    "mount_options": [
+      "nosuid",
+      "nodev",
+      "noexec"
+    ],
+    "environment": {
+      "restricted_vars": [
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME"
+      ],
+      "prohibited_vars": [
+        "DOCKER_*",
+        "AWS_*",
+        "SSH_*"
+      ]
+    }
+  },
+  "runtime": {
+    "tmpfs_mounts": [
+      "/tmp:noexec,nosuid,size=100m",
+      "/var/tmp:noexec,nosuid,size=50m"
+    ],
+    "read_only_paths": [
+      "/proc/sys",
+      "/proc/sysrq-trigger",
+      "/proc/irq",
+      "/proc/bus"
+    ],
+    "masked_paths": [
+      "/proc/kcore",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/sys/firmware"
+    ]
+  }
+}
