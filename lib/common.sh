@@ -334,7 +334,7 @@ process_config_template() {
     local required_vars="$3"
 
     # Validate required variables are set
-    for var in ${required_vars}; do
+    for var in $required_vars; do
         if [[ -z "${!var:-}" ]]; then
             error "Required variable $var not set for template $template"
             return 1
