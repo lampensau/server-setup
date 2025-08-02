@@ -213,13 +213,7 @@ configure_docker_daemon_security_post_coolify() {
                     }
                 },
                 "exec-opts": ["native.cgroupdriver=systemd"],
-                "dns": ["1.1.1.1", "1.0.0.1"],
-                "default-runtime": "runc",
-                "runtimes": {
-                    "runc": {
-                        "path": "runc"
-                    }
-                }
+                "dns": ["1.1.1.1", "1.0.0.1"]
             } + (if $seccomp_exists then {"seccomp-profile": "/etc/docker/seccomp-hardened.json"} else {} end)' /etc/docker/daemon.json > "$temp_merged"
             
             # Validate merged JSON and test Docker daemon compatibility

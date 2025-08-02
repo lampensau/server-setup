@@ -31,11 +31,5 @@
   "iptables": true,
   "bridge": "none",
   "exec-opts": ["native.cgroupdriver=systemd"],
-  "dns": ["1.1.1.1", "1.0.0.1"],
-  "default-runtime": "runc",
-  "runtimes": {
-    "runc": {
-      "path": "runc"
-    }
-  }
+  "dns": ["1.1.1.1", "1.0.0.1"]
 }
