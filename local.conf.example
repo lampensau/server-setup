@@ -1,0 +1,222 @@
+# Local Configuration Override Example
+# Copy to 'local.conf' and customize for your environment
+# All parameters are optional - defaults will be used if not specified
+
+# =============================================================================
+# SYSTEM CONFIGURATION
+# =============================================================================
+
+# Timezone configuration (default: UTC)
+# Available timezones: timedatectl list-timezones
+TIMEZONE="UTC"
+# TIMEZONE="America/New_York"
+# TIMEZONE="Europe/London"
+# TIMEZONE="Asia/Tokyo"
+
+# Hostname and domain configuration
+# If HOSTNAME is set, the system hostname will be changed
+# If DOMAIN is also set, FQDN will be configured in /etc/hosts
+HOSTNAME=""
+DOMAIN=""
+# Example:
+# HOSTNAME="web01"
+# DOMAIN="example.com"
+# Results in FQDN: web01.example.com
+
+# IPv6 configuration (default: false)
+# Set to true to disable IPv6 completely
+DISABLE_IPV6="false"
+
+# =============================================================================
+# SSH CONFIGURATION
+# =============================================================================
+
+# SSH server configuration
+SSH_PORT="22"
+ALLOW_AGENT_FORWARDING="yes"
+ALLOW_TCP_FORWARDING="yes"
+
+# SSH user and group management (default: false)
+# Set to true to enable AllowUsers/AllowGroups in sshd_config
+ENABLE_USER_GROUPS="false"
+
+# SSH client configuration
+# These settings affect the default SSH client configuration
+# SSH_CLIENT_COMPRESSION="yes"
+# SSH_CLIENT_CONTROL_MASTER="auto"
+
+# =============================================================================
+# SERVER TYPE CONFIGURATION
+# =============================================================================
+
+# Web server selection (for -t web)
+# Options: nginx, caddy (default: caddy)
+WEB_SERVER="caddy"
+
+# Web application support (for -t web)
+# Comma-separated list: static, php, nodejs, python
+WEB_APPS="static"
+# WEB_APPS="static,php,nodejs"
+
+# PHP version (for PHP applications)
+PHP_VERSION="8.1"
+
+# Docker configuration (for -t docker)
+# Domain for Coolify web interface
+# COOLIFY_DOMAIN="docker.example.com"
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
+# Package removal configuration
+# Packages listed here will be removed in 'hardened' security profile
+# Override default package lists (see lib/common.sh for defaults)
+
+# Development packages to remove (space-separated)
+# DEVEL_PACKAGES="build-essential gcc g++ make cmake"
+
+# GUI packages to remove (space-separated)
+# GUI_PACKAGES="ubuntu-desktop gnome-desktop3-data xorg"
+
+# Cloud agent packages to remove (space-separated)
+# CLOUD_PACKAGES="amazon-ssm-agent google-cloud-sdk azure-cli"
+
+# =============================================================================
+# ADVANCED CONFIGURATION
+# =============================================================================
+
+# Custom backup directory (default: /root/server-backup-TIMESTAMP)
+# BACKUP_DIR="/custom/backup/location"
+
+# Custom log file location (default: /var/log/server-setup.log)
+# LOG_FILE="/custom/log/server-setup.log"
+
+# Admin user configuration (used with -u flag)
+# Default SSH public key for admin user
+# ADMIN_SSH_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user@host"
+
+# =============================================================================
+# NETWORK CONFIGURATION
+# =============================================================================
+
+# Firewall configuration
+# Default rules to allow (space-separated ports)
+# FIREWALL_ALLOW_PORTS="80 443 22"
+
+# Fail2ban configuration
+# Maximum retry attempts before ban
+# FAIL2BAN_MAXRETRY="3"
+
+# Ban time in seconds (default: 3600 = 1 hour)
+# FAIL2BAN_BANTIME="3600"
+
+# Find time window in seconds (default: 600 = 10 minutes)
+# FAIL2BAN_FINDTIME="600"
+
+# =============================================================================
+# APPLICATION-SPECIFIC CONFIGURATION
+# =============================================================================
+
+# nginx-specific configuration (when WEB_SERVER="nginx")
+# Enable NAXSI Web Application Firewall
+# NGINX_ENABLE_NAXSI="true"
+
+# nginx worker processes (auto-detected if not set)
+# NGINX_WORKER_PROCESSES="auto"
+
+# Caddy-specific configuration (when WEB_SERVER="caddy")
+# Email for Let's Encrypt ACME registration
+# CADDY_ACME_EMAIL="admin@example.com"
+
+# Node.js configuration (when WEB_APPS includes nodejs)
+# Node.js version to install via NodeSource repository
+# NODEJS_VERSION="lts"
+
+# PM2 ecosystem file location
+# PM2_ECOSYSTEM_FILE="/etc/pm2/ecosystem.config.js"
+
+# Python configuration (when WEB_APPS includes python)
+# Python virtual environment location
+# PYTHON_VENV_PATH="/opt/python-apps"
+
+# Gunicorn configuration
+# GUNICORN_WORKERS="auto"
+# GUNICORN_BIND="127.0.0.1:8000"
+
+# =============================================================================
+# MONITORING AND LOGGING
+# =============================================================================
+
+# Log retention configuration
+# Journal log retention (default: 1 month)
+# JOURNAL_MAX_AGE="1month"
+# JOURNAL_MAX_SIZE="1G"
+
+# Log rotation configuration
+# LOGROTATE_FREQUENCY="daily"
+# LOGROTATE_RETENTION="30"
+
+# System monitoring configuration
+# Enable additional monitoring tools in hardened mode
+# ENABLE_AUDITD="true"
+# ENABLE_AIDE="true"
+# ENABLE_RKHUNTER="true"
+
+# =============================================================================
+# DEVELOPMENT/TESTING OVERRIDES
+# =============================================================================
+
+# Skip certain validation checks (for testing only)
+# SKIP_OS_CHECK="false"
+# SKIP_INTERNET_CHECK="false"
+# SKIP_DISK_SPACE_CHECK="false"
+
+# Force certain behaviors (for testing only)
+# FORCE_DISTRO="ubuntu"
+# FORCE_VERSION="22.04"
+
+# Custom package repository (for testing)
+# CUSTOM_APT_SOURCES=""
+
+# =============================================================================
+# EXAMPLES FOR COMMON SCENARIOS
+# =============================================================================
+
+# Example 1: Web server with nginx and PHP
+# WEB_SERVER="nginx"
+# WEB_APPS="static,php"
+# DOMAIN="mysite.com"
+# PHP_VERSION="8.2"
+
+# Example 2: Docker server with custom domain
+# DOMAIN="docker.example.com"
+# COOLIFY_DOMAIN="docker.example.com"
+
+# Example 3: High-security SSH server
+# SSH_PORT="2222"
+# ALLOW_AGENT_FORWARDING="no"
+# ALLOW_TCP_FORWARDING="no"
+# ENABLE_USER_GROUPS="true"
+
+# Example 4: Development server with minimal security
+# DISABLE_IPV6="true"
+# TIMEZONE="America/Los_Angeles"
+# WEB_SERVER="caddy"
+# WEB_APPS="static,nodejs,python"
+
+# =============================================================================
+# NOTES
+# =============================================================================
+
+# 1. Copy this file to 'local.conf' in the same directory as server-setup.sh
+# 2. Uncomment and modify only the settings you want to change
+# 3. Boolean values should be "true" or "false" (lowercase)
+# 4. String values with spaces should be quoted
+# 5. Array values (like WEB_APPS) are comma-separated without spaces
+# 6. Comments start with # and are ignored
+# 7. Empty values ("") will use the default value
+# 8. Invalid values will cause the script to exit with an error
+
+# For more information, see the README.md file or run:
+# ./server-setup.sh --help

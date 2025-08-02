@@ -1,0 +1,38 @@
+[Unit]
+Description=AutoSSH tunnel service for %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+Environment="AUTOSSH_GATETIME=0"
+Environment="AUTOSSH_POLL=60"
+Environment="AUTOSSH_FIRST_POLL=30"
+Environment="AUTOSSH_LOGLEVEL=3"
+ExecStart=/usr/bin/autossh -M 0 -N -o "BatchMode=yes" -o "StrictHostKeyChecking=yes" -o "UserKnownHostsFile=/etc/ssh/autossh_known_hosts" -o "ServerAliveInterval=60" -o "ServerAliveCountMax=3" -o "ExitOnForwardFailure=yes" -i /etc/ssh/autossh_keys/autossh_key %i
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+RestartSec=15
+
+# Security hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+ReadOnlyPaths=/etc
+ReadWritePaths=/etc/ssh/autossh_known_hosts
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

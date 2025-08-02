@@ -1,0 +1,41 @@
+{
+  "userns-remap": "default",
+  "storage-driver": "overlay2",
+  "storage-opts": [
+    "overlay2.override_kernel_check=true"
+  ],
+  "icc": false,
+  "live-restore": true,
+  "no-new-privileges": true,
+  "seccomp-profile": "/etc/docker/seccomp-hardened.json",
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 64000,
+      "Name": "nofile",
+      "Soft": 64000
+    },
+    "nproc": {
+      "Hard": 32768,
+      "Name": "nproc",
+      "Soft": 16384
+    }
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy": false,
+  "experimental": false,
+  "ip-forward": false,
+  "iptables": true,
+  "bridge": "none",
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "dns": ["1.1.1.1", "1.0.0.1"],
+  "default-runtime": "runc",
+  "runtimes": {
+    "runc": {
+      "path": "runc"
+    }
+  }
+}

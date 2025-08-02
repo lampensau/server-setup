@@ -1,0 +1,78 @@
+# Caddy PHP Site Configuration Template
+# Variables: DOMAIN, DOCUMENT_ROOT, PHP_VERSION
+
+${DOMAIN} {
+    # Document root
+    root * ${DOCUMENT_ROOT:-/var/www/${DOMAIN}}
+    
+    # PHP FastCGI
+    php_fastcgi unix//var/run/php/php${PHP_VERSION:-8.1}-fpm.sock
+    
+    # File serving with PHP support
+    file_server
+    
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options SAMEORIGIN
+        X-Content-Type-Options nosniff
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';"
+        -Server
+        -X-Powered-By
+    }
+    
+    # Import security snippets
+    import security_headers
+    import block_sensitive_files
+    import static_assets
+    import rate_limit_general
+    
+    # Block PHP execution in uploads
+    @uploads {
+        path */uploads/*.php
+    }
+    respond @uploads 403
+    
+    # Block composer files
+    @composer {
+        path */composer.json
+        path */composer.lock
+    }
+    respond @composer 403
+    
+    # URL rewriting for pretty URLs (common for PHP frameworks)
+    try_files {uri} {uri}/ /index.php?{query}
+    
+    # Custom error pages
+    handle_errors {
+        @404 {
+            expression {http.error.status_code} == 404
+        }
+        @5xx {
+            expression {http.error.status_code} >= 500
+        }
+        
+        handle @404 {
+            rewrite * /404.php
+            php_fastcgi unix//var/run/php/php${PHP_VERSION:-8.1}-fpm.sock
+        }
+        
+        handle @5xx {
+            rewrite * /50x.php
+            php_fastcgi unix//var/run/php/php${PHP_VERSION:-8.1}-fpm.sock
+        }
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/${DOMAIN}.access.log {
+            roll_size 100MB
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+}

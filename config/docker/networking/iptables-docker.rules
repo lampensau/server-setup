@@ -1,0 +1,30 @@
+# Additional iptables rules for Docker security
+# These rules are applied after Docker's own iptables rules
+
+*filter
+
+# Docker network isolation rules
+# Allow communication between DMZ and APP networks (reverse proxy to apps)
+-A DOCKER-USER -s 172.20.0.0/16 -d 172.21.0.0/16 -j ACCEPT
+-A DOCKER-USER -s 172.21.0.0/16 -d 172.20.0.0/16 -j ACCEPT
+
+# Allow communication between APP and DATA networks (apps to databases)
+-A DOCKER-USER -s 172.21.0.0/16 -d 172.22.0.0/16 -j ACCEPT
+-A DOCKER-USER -s 172.22.0.0/16 -d 172.21.0.0/16 -j ACCEPT
+
+# Allow Coolify management network to communicate with all networks
+-A DOCKER-USER -s 172.23.0.0/16 -j ACCEPT
+-A DOCKER-USER -d 172.23.0.0/16 -j ACCEPT
+
+# Block inter-network communication not explicitly allowed above
+-A DOCKER-USER -s 172.20.0.0/16 -d 172.22.0.0/16 -j DROP
+-A DOCKER-USER -s 172.22.0.0/16 -d 172.20.0.0/16 -j DROP
+
+# Rate limiting for Docker containers
+-A DOCKER-USER -m conntrack --ctstate NEW -m limit --limit 60/minute --limit-burst 20 -j ACCEPT
+-A DOCKER-USER -m conntrack --ctstate NEW -j DROP
+
+# Log dropped packets for security monitoring
+-A DOCKER-USER -j LOG --log-prefix "DOCKER-BLOCKED: " --log-level 4
+
+COMMIT

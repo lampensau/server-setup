@@ -1,0 +1,49 @@
+#include <tunables/global>
+
+profile coolify-container flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/ssl_certs>
+
+  network inet tcp,
+  network inet udp,
+  network inet6 tcp,
+  network inet6 udp,
+  network unix,
+
+  capability net_bind_service,
+  capability setuid,
+  capability setgid,
+  capability dac_override,
+  capability chown,
+
+  # Allow access to common application directories
+  /data/coolify/** rw,
+  /var/log/** rw,
+  /tmp/** rw,
+  /etc/ssl/** r,
+  /etc/ca-certificates/** r,
+  /usr/share/ca-certificates/** r,
+
+  # Allow basic file operations
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/local/bin/** ix,
+  /lib/** mr,
+  /lib64/** mr,
+  /usr/lib/** mr,
+
+  # Deny dangerous operations
+  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/mem rwklx,
+  deny @{PROC}/kmem rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny mount,
+  deny /sys/[^f]*/** wklx,
+  deny /sys/firmware/efi/efivars/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # Allow container management operations
+  ptrace (trace,read) peer=coolify-container,
+}

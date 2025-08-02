@@ -1,0 +1,5 @@
+# Set I/O scheduler for non-rotating disks
+ACTION=="add|change", KERNEL=="sd[a-z]|nvme[0-n][0-p]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="none"
+
+# Set I/O scheduler for rotating disks
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"

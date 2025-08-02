@@ -1,0 +1,26 @@
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# Allow loopback
+-A INPUT -i lo -j ACCEPT
+
+# Allow established connections
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# SSH Rate limiting (DHEat DoS protection)
+-A INPUT -p tcp --dport ${SSH_PORT} -m conntrack --ctstate NEW -m recent --set --name SSH
+-A INPUT -p tcp --dport ${SSH_PORT} -m conntrack --ctstate NEW -m recent --update --seconds 60 --hitcount 10 --name SSH -j DROP
+
+# Allow SSH
+-A INPUT -p tcp --dport ${SSH_PORT} -j ACCEPT
+
+# Allow HTTP/HTTPS
+-A INPUT -p tcp --dport 80 -j ACCEPT
+-A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Drop everything else
+-A INPUT -j DROP
+
+COMMIT

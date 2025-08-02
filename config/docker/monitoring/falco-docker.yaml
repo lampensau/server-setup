@@ -1,0 +1,84 @@
+# Falco rules for Docker security monitoring
+# Runtime protection against container threats
+
+- rule: Docker Daemon Configuration Changed
+  desc: Detect changes to Docker daemon configuration
+  condition: >
+    open_write and
+    (fd.filename startswith /etc/docker or
+     fd.filename startswith /var/lib/docker/daemon.json)
+  output: >
+    Docker daemon configuration changed (user=%user.name command=%proc.cmdline file=%fd.name)
+  priority: WARNING
+  tags: [docker, configuration]
+
+- rule: Container Spawned with Privileged Mode
+  desc: Detect containers started with privileged mode
+  condition: >
+    spawned_process and
+    container and
+    proc.cmdline contains "--privileged"
+  output: >
+    Privileged container spawned (user=%user.name container=%container.name command=%proc.cmdline)
+  priority: WARNING
+  tags: [docker, privilege_escalation]
+
+- rule: Container Escape Attempt
+  desc: Detect potential container escape attempts
+  condition: >
+    spawned_process and
+    container and
+    (proc.name in (nsenter, unshare) or
+     proc.cmdline contains "chroot /host")
+  output: >
+    Potential container escape attempt (user=%user.name container=%container.name command=%proc.cmdline)
+  priority: CRITICAL
+  tags: [docker, escape_attempt]
+
+- rule: Unexpected Container Network Activity
+  desc: Detect unusual network connections from containers
+  condition: >
+    inbound_outbound and
+    container and
+    not fd.sport in (80, 443, 22, 53, 123, 25, 587, 993, 995)
+  output: >
+    Unexpected network activity from container (container=%container.name connection=%fd.name)
+  priority: NOTICE
+  tags: [docker, network]
+
+- rule: Container File System Modification
+  desc: Detect modifications to critical container paths
+  condition: >
+    open_write and
+    container and
+    (fd.filename startswith /etc/passwd or
+     fd.filename startswith /etc/shadow or
+     fd.filename startswith /etc/sudoers)
+  output: >
+    Critical file modified in container (user=%user.name container=%container.name file=%fd.name)
+  priority: WARNING
+  tags: [docker, file_modification]
+
+- rule: Coolify Security Event
+  desc: Detect security-relevant events in Coolify containers
+  condition: >
+    spawned_process and
+    container and
+    container.image.repository contains "coolify" and
+    (proc.name in (su, sudo, passwd, ssh) or
+     proc.cmdline contains "chmod 777")
+  output: >
+    Security event in Coolify container (user=%user.name container=%container.name command=%proc.cmdline)
+  priority: WARNING
+  tags: [coolify, security]
+
+- rule: Docker Socket Access
+  desc: Detect access to Docker socket from containers
+  condition: >
+    open_read or open_write and
+    container and
+    fd.filename=/var/run/docker.sock
+  output: >
+    Docker socket accessed from container (user=%user.name container=%container.name)
+  priority: CRITICAL
+  tags: [docker, socket_access]

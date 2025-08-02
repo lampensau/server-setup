@@ -1,0 +1,48 @@
+#!/bin/bash
+# Unified Server Configuration Restore Script
+# Generated automatically - use with caution
+
+BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "Restoring server configuration from backup..."
+echo "Backup directory: $BACKUP_DIR"
+
+read -p "Are you sure you want to restore? This will overwrite current config (y/N): " confirm
+if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Restore cancelled"
+    exit 0
+fi
+
+# Restore files
+for backup_file in "$BACKUP_DIR"/*.backup; do
+    if [[ -f "$backup_file" ]]; then
+        original_file="/etc/$(basename "$backup_file" .backup)"
+        cp "$backup_file" "$original_file"
+        echo "Restored: $original_file"
+    fi
+done
+
+# Restore directories
+restore_dirs=(
+    "sshd_config.d"
+    "sysctl.d"
+    "systemd-system:systemd/system"
+    "limits.d:security/limits.d"
+    "fail2ban-jail.d:fail2ban/jail.d"
+)
+
+for restore_entry in "${restore_dirs[@]}"; do
+    IFS=':' read -r backup_name target_path <<< "$restore_entry"
+    if [[ -z "$target_path" ]]; then
+        target_path="$backup_name"
+    fi
+    
+    if [[ -d "$BACKUP_DIR/${backup_name}.backup" ]]; then
+        rm -rf "/etc/$target_path"
+        cp -r "$BACKUP_DIR/${backup_name}.backup" "/etc/$target_path"
+        echo "Restored: /etc/$target_path"
+    fi
+done
+
+echo "Restore complete. Reboot recommended."
+echo "Remember to restart SSH service: systemctl restart ssh"

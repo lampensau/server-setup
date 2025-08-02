@@ -1,0 +1,40 @@
+# Docker Security Audit Rules
+# Monitor Docker daemon and container activities for security
+
+# Docker daemon and binary monitoring
+-w /usr/bin/dockerd -p wa -k docker_daemon
+-w /usr/bin/docker -p wa -k docker_cli
+-w /usr/bin/containerd -p wa -k containerd_daemon
+-w /usr/bin/runc -p wa -k runc_binary
+
+# Docker configuration and data directories
+-w /etc/docker -p wa -k docker_config
+-w /var/lib/docker -p wa -k docker_data
+-w /run/containerd -p wa -k containerd_runtime
+-w /var/run/docker.sock -p wa -k docker_socket
+
+# Docker service files and configurations
+-w /usr/lib/systemd/system/docker.service -p wa -k docker_service
+-w /usr/lib/systemd/system/containerd.service -p wa -k containerd_service
+-w /etc/systemd/system/docker.service.d -p wa -k docker_service_override
+
+# Container network interfaces (for network security monitoring)
+-a always,exit -F arch=b64 -S socket -F a0=10 -k docker_network
+-a always,exit -F arch=b32 -S socket -F a0=10 -k docker_network
+
+# Monitor container privilege escalation attempts
+-a always,exit -F arch=b64 -S setuid -F success=1 -k docker_privilege_escalation
+-a always,exit -F arch=b32 -S setuid -F success=1 -k docker_privilege_escalation
+-a always,exit -F arch=b64 -S setgid -F success=1 -k docker_privilege_escalation
+-a always,exit -F arch=b32 -S setgid -F success=1 -k docker_privilege_escalation
+
+# Monitor mount operations (potential container breakout attempts)
+-a always,exit -F arch=b64 -S mount -k docker_mount
+-a always,exit -F arch=b32 -S mount -k docker_mount
+
+# Monitor process creation in containers
+-a always,exit -F arch=b64 -S execve -k docker_exec
+-a always,exit -F arch=b32 -S execve -k docker_exec
+
+# Coolify specific monitoring
+-w /data/coolify -p wa -k coolify_data
