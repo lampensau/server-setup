@@ -8,10 +8,8 @@
 
 # Timezone configuration (default: UTC)
 # Available timezones: timedatectl list-timezones
-TIMEZONE="UTC"
-# TIMEZONE="America/New_York"
-# TIMEZONE="Europe/London"
-# TIMEZONE="Asia/Tokyo"
+TIMEZONE="Europe/Berlin"
+# TIMEZONE="UTC"
 
 # Hostname and domain configuration
 # If HOSTNAME is set, the system hostname will be changed
@@ -25,7 +23,7 @@ DOMAIN=""
 
 # IPv6 configuration (default: false)
 # Set to true to disable IPv6 completely
-DISABLE_IPV6="false"
+DISABLE_IPV6="true"
 
 # =============================================================================
 # SSH CONFIGURATION
