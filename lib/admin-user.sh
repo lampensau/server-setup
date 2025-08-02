@@ -174,12 +174,24 @@ install_admin_public_key() {
         "$CONFIG_DIR/ssh/keys/admin_ed25519.pub"
     )
     
+    # First try specific admin key names
     for key_file in "${possible_keys[@]}"; do
         if [[ -f "$key_file" ]]; then
             admin_key_file="$key_file"
             break
         fi
     done
+    
+    # If no specific key found, use any .pub key available
+    if [[ -z "$admin_key_file" ]]; then
+        for key_file in "$CONFIG_DIR/ssh/keys"/*.pub; do
+            if [[ -f "$key_file" ]]; then
+                admin_key_file="$key_file"
+                info "Using available public key: $(basename "$key_file")"
+                break
+            fi
+        done
+    fi
     
     if [[ -n "$admin_key_file" ]]; then
         if [[ "$DRY_RUN" == "false" ]]; then
