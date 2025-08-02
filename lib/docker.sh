@@ -71,11 +71,11 @@ install_docker_ce_hardened() {
         # Install prerequisites
         apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
         
-        # Add Docker's official GPG key
-        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        # Add Docker's official GPG key (detect OS first)
+        curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
         
-        # Add Docker repository
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+        # Add Docker repository for detected OS
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${OS_ID} $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
         
         # Update package index
         apt-get update
