@@ -147,35 +147,19 @@ apply_cve_2024_41110_mitigations() {
     
     # Configure systemd service to use Unix socket only (no TCP)
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Ensure Docker daemon only listens on Unix socket
-        systemctl edit docker --force --full > /dev/null 2>&1 << 'EOF'
-[Unit]
-Description=Docker Application Container Engine
-Documentation=https://docs.docker.com
-After=network-online.target docker.socket firewalld.service containerd.service time-set.target
-Wants=network-online.target containerd.service
-Requires=docker.socket
-
+        # Create Docker service override directory
+        mkdir -p /etc/systemd/system/docker.service.d
+        
+        # Create secure Docker service configuration
+        cat > /etc/systemd/system/docker.service.d/override.conf << 'EOF'
 [Service]
-Type=notify
+# CVE-2024-41110 protection - Unix socket only, no TCP
+ExecStart=
 ExecStart=/usr/bin/dockerd --host=unix:///var/run/docker.sock --containerd=/run/containerd/containerd.sock
-ExecReload=/bin/kill -s HUP $MAINPID
-TimeoutStartSec=0
-RestartSec=2
-Restart=always
-StartLimitBurst=3
-StartLimitInterval=60s
-LimitNOFILE=infinity
-LimitNPROC=infinity
-LimitCORE=infinity
-TasksMax=infinity
-Delegate=yes
-KillMode=process
-OOMScoreAdjust=-500
-
-[Install]
-WantedBy=multi-user.target
 EOF
+        
+        # Reload systemd configuration
+        systemctl daemon-reload
     else
         info "[DRY RUN] Would configure Docker service for Unix socket only"
     fi
