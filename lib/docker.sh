@@ -180,12 +180,17 @@ configure_docker_daemon_security_post_coolify() {
             local coolify_config="/etc/docker/daemon.json"
             local static_config="$hardened_config"
             
-            # Use jq to merge static config over Coolify config, preserving Coolify's network settings
-            jq -s '.[0] * .[1] | 
-                   if .[0]["default-address-pools"] then 
-                       .["default-address-pools"] = .[0]["default-address-pools"] 
-                   else . end' \
-                   "$coolify_config" "$static_config" > "$temp_merged"
+            # Simple merge: Coolify config + our static hardened config
+            # Preserve Coolify's network pools, apply our security settings
+            local coolify_pools=$(jq -r '.["default-address-pools"] // empty' "$coolify_config")
+            
+            # Start with our static config
+            cp "$static_config" "$temp_merged"
+            
+            # Add back Coolify's network pools if they exist
+            if [[ -n "$coolify_pools" && "$coolify_pools" != "null" ]]; then
+                jq --argjson pools "$coolify_pools" '.["default-address-pools"] = $pools' "$temp_merged" > "${temp_merged}.tmp" && mv "${temp_merged}.tmp" "$temp_merged"
+            fi
             
             # Validate merged JSON and test Docker daemon compatibility
             if jq . "$temp_merged" >/dev/null 2>&1; then
