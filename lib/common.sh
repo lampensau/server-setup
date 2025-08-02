@@ -334,14 +334,11 @@ process_config_template() {
     local required_vars="$3"
 
     # Validate required variables are set
-    debug "Validating required variables: $required_vars"
     for var in $required_vars; do
-        debug "Checking variable: '$var'"
         if [[ -z "${!var:-}" ]]; then
             error "Required variable $var not set for template $template"
             return 1
         fi
-        debug "Variable $var is set to: ${!var}"
     done
 
     if [[ "$DRY_RUN" == "true" ]]; then
