@@ -81,9 +81,40 @@ configure_ssh_server() {
         fi
         
         # Apply the configuration
+        # Check if we're changing from default port
+        local current_port=$(ss -tlnp 2>/dev/null | grep sshd | awk '{print $4}' | sed 's/.*://' | head -1 || echo "22")
+        
         if ! is_ssh_connection_active; then
             systemctl restart ssh
             success "SSH server restarted with new configuration"
+        elif [[ "${current_port}" == "22" && "${SSH_PORT}" != "22" ]]; then
+            # We MUST restart when changing from default port
+            warn "SSH port is changing from 22 to ${SSH_PORT}"
+            warn "SSH service WILL BE RESTARTED in 10 seconds!"
+            warn "IMPORTANT: Keep this session open and test new connection in another terminal!"
+            warn ""
+            warn "Restarting SSH in 10 seconds... Press Ctrl+C to abort"
+            
+            # Give user time to abort if needed
+            for i in {10..1}; do
+                echo -n "$i... "
+                sleep 1
+            done
+            echo ""
+            
+            # Restart SSH
+            systemctl restart ssh
+            
+            # Quick check if new port is active
+            sleep 2
+            if ss -tlnp 2>/dev/null | grep -q ":${SSH_PORT}"; then
+                success "SSH is now listening on port ${SSH_PORT}"
+                warn "TEST NOW: ssh -p ${SSH_PORT} user@$(hostname -I | awk '{print $1}')"
+                warn "DO NOT close this session until you confirm the new connection works!"
+            else
+                error "SSH may not be listening on port ${SSH_PORT}!"
+                error "Check with: ss -tlnp | grep sshd"
+            fi
         else
             warn "SSH configuration updated but not restarted (you're connected via SSH)"
             warn "Test the configuration in a NEW terminal before disconnecting this session"
@@ -153,7 +184,16 @@ test_ssh_config() {
     # Test port configuration
     local configured_port=$(sshd -T | grep "^port " | awk '{print $2}')
     if [[ "$configured_port" != "${SSH_PORT}" ]]; then
-        warn "Configured SSH port ($configured_port) doesn't match expected port (${SSH_PORT})"
+        error "Configured SSH port ($configured_port) doesn't match expected port (${SSH_PORT})"
+        return 1
+    fi
+    
+    # Check if SSH is actually listening on the configured port
+    local listening_port=$(ss -tlnp 2>/dev/null | grep sshd | awk '{print $4}' | sed 's/.*://' | head -1)
+    if [[ -n "$listening_port" && "$listening_port" != "${SSH_PORT}" ]]; then
+        error "SSH is configured for port ${SSH_PORT} but listening on port ${listening_port}"
+        error "SSH service needs to be restarted!"
+        return 1
     fi
     
     success "SSH server configuration tests passed"
@@ -203,6 +243,14 @@ rollback_ssh_config() {
         cp "/etc/ssh/sshd_config.backup.${backup_date}" /etc/ssh/sshd_config
         rm -f /etc/ssh/sshd_config.d/01-security.conf
         rm -f /etc/ssh/sshd_config.d/02-sftp.conf
+        
+        # Also remove cloud-init configs that were disabled
+        for disabled_conf in /etc/ssh/sshd_config.d/*cloud*.conf.disabled; do
+            if [[ -f "$disabled_conf" ]]; then
+                # Restore original cloud-init config
+                mv "$disabled_conf" "${disabled_conf%.disabled}"
+            fi
+        done
         
         # Test the rolled back configuration
         if sshd -T >/dev/null 2>&1; then
