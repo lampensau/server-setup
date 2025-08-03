@@ -84,16 +84,32 @@ configure_ssh_server() {
         # Check if we're changing from default port
         local current_port=$(ss -tlnp 2>/dev/null | grep sshd | awk '{print $4}' | sed 's/.*://' | head -1 || echo "22")
         
+        # Check if we need to handle socket activation
+        local needs_socket_handling=false
+        if [[ "${SSH_PORT}" != "22" ]] && systemctl is-enabled --quiet ssh.socket 2>/dev/null; then
+            needs_socket_handling=true
+            info "SSH socket activation detected - will disable for custom port"
+        fi
+        
         if ! is_ssh_connection_active; then
-            systemctl restart ssh
+            if [[ "$needs_socket_handling" == "true" ]]; then
+                # Disable socket activation and enable direct service
+                systemctl stop ssh.socket ssh.service
+                systemctl disable ssh.socket
+                systemctl enable ssh.service
+                systemctl start ssh.service
+                info "Disabled SSH socket activation and started direct SSH service"
+            else
+                systemctl restart ssh
+            fi
             success "SSH server restarted with new configuration"
         elif [[ "${current_port}" == "22" && "${SSH_PORT}" != "22" ]]; then
             # We MUST restart when changing from default port
             warn "SSH port is changing from 22 to ${SSH_PORT}"
-            warn "SSH service WILL BE RESTARTED in 10 seconds!"
+            warn "THIS WILL RESTART SSH AND COULD DISCONNECT YOUR SESSION!"
             warn "IMPORTANT: Keep this session open and test new connection in another terminal!"
             warn ""
-            warn "Restarting SSH in 10 seconds... Press Ctrl+C to abort"
+            warn "Automatic restart in 10 seconds... Press Ctrl+C to abort and do it manually"
             
             # Give user time to abort if needed
             for i in {10..1}; do
@@ -102,8 +118,17 @@ configure_ssh_server() {
             done
             echo ""
             
-            # Restart SSH
-            systemctl restart ssh
+            # Handle socket activation if needed
+            if [[ "$needs_socket_handling" == "true" ]]; then
+                # Disable socket activation and enable direct service
+                systemctl stop ssh.socket ssh.service
+                systemctl disable ssh.socket
+                systemctl enable ssh.service
+                systemctl start ssh.service
+                info "Disabled SSH socket activation and started direct SSH service"
+            else
+                systemctl restart ssh
+            fi
             
             # Quick check if new port is active
             sleep 2
@@ -118,7 +143,15 @@ configure_ssh_server() {
         else
             warn "SSH configuration updated but not restarted (you're connected via SSH)"
             warn "Test the configuration in a NEW terminal before disconnecting this session"
-            warn "Command to restart: sudo systemctl restart ssh"
+            if [[ "$needs_socket_handling" == "true" ]]; then
+                warn "Socket activation needs to be disabled for custom port:"
+                warn "Commands to run: sudo systemctl stop ssh.socket ssh.service"
+                warn "                 sudo systemctl disable ssh.socket"
+                warn "                 sudo systemctl enable ssh.service"
+                warn "                 sudo systemctl start ssh.service"
+            else
+                warn "Command to restart: sudo systemctl restart ssh"
+            fi
         fi
     else
         info "[DRY RUN] Would configure SSH server with modern security"
