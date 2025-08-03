@@ -232,13 +232,35 @@ configure_motd() {
             fi
         done
         
-        # Validate MOTD scripts are working
+        # Install update-motd if not available (Ubuntu has it, Debian doesn't)
+        if ! command -v update-motd >/dev/null 2>&1; then
+            if [[ -f /etc/debian_version ]] && ! grep -q "Ubuntu" /etc/os-release 2>/dev/null; then
+                # On Debian, update-motd might not be available, skip validation
+                info "update-motd not available on Debian - MOTD will work without validation"
+            else
+                # On Ubuntu-based systems, try to install update-motd
+                if dpkg -l | grep -q "^ii.*update-motd"; then
+                    info "update-motd package installed but command not found"
+                else
+                    info "Installing update-motd package..."
+                    if [[ "$DRY_RUN" == "false" ]]; then
+                        apt-get update -qq && apt-get install -y update-motd 2>/dev/null || true
+                    else
+                        info "[DRY RUN] Would install update-motd package"
+                    fi
+                fi
+            fi
+        fi
+        
+        # Validate MOTD scripts are working (if update-motd is available)
         if command -v update-motd >/dev/null 2>&1; then
             if timeout 10 update-motd 2>/dev/null; then
                 info "MOTD scripts validated successfully"
             else
                 warn "MOTD validation failed - check script syntax"
             fi
+        else
+            info "MOTD scripts installed (validation skipped - update-motd not available)"
         fi
         
         # Ensure motd-news is disabled (Ubuntu)
