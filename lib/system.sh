@@ -405,7 +405,11 @@ configure_apt_production() {
         atomic_install "$CONFIG_DIR/applications/apt/unattended-upgrades.conf" "/etc/apt/apt.conf.d/50-unattended-upgrades" "644" "root:root"
         
         # Enable unattended upgrades
-        systemctl enable --now unattended-upgrades
+        if systemctl enable --now unattended-upgrades; then
+            info "Enabled unattended-upgrades service"
+        else
+            warn "Failed to enable unattended-upgrades service - may not be available"
+        fi
         
         success "APT configured for production use"
     else
@@ -441,9 +445,15 @@ remove_unnecessary_packages() {
             done
             
             if [[ ${#installed_packages[@]} -gt 0 ]]; then
-                apt-get remove -y "${installed_packages[@]}" || true
-                apt-get autoremove -y
-                info "Removed development packages: ${installed_packages[*]}"
+                info "Removing development packages: ${installed_packages[*]}"
+                if apt-get remove -y "${installed_packages[@]}"; then
+                    apt-get autoremove -y || true
+                    info "Successfully removed development packages"
+                else
+                    warn "Failed to remove some development packages - continuing anyway"
+                fi
+            else
+                info "No development packages to remove"
             fi
         fi
         
