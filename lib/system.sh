@@ -283,6 +283,11 @@ configure_motd() {
         if [[ -f "$CONFIG_DIR/scripts/management/motd-cache-warmer.sh" ]]; then
             atomic_install "$CONFIG_DIR/scripts/management/motd-cache-warmer.sh" "/usr/local/bin/motd-cache-warmer.sh" "755" "root:root"
             
+            # Create log file for cache warmer with proper permissions
+            touch /var/log/motd-cache-warmer.log
+            chmod 644 /var/log/motd-cache-warmer.log
+            chown root:root /var/log/motd-cache-warmer.log
+            
             # Add cron job for cache warming (every 30 minutes)
             CRON_ENTRY="*/30 * * * * /usr/local/bin/motd-cache-warmer.sh >/dev/null 2>&1"
             if ! crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
@@ -305,10 +310,13 @@ configure_motd() {
                 info "Configured log rotation for MOTD cache warmer"
             fi
             
-            # Run initial cache warming
+            # Run initial cache warming (with error handling)
             if [[ -x /usr/local/bin/motd-cache-warmer.sh ]]; then
-                /usr/local/bin/motd-cache-warmer.sh &
-                info "Started initial cache warming"
+                if /usr/local/bin/motd-cache-warmer.sh 2>/dev/null; then
+                    info "Started initial cache warming"
+                else
+                    warn "Cache warmer had issues but MOTD is still functional"
+                fi
             fi
         fi
         

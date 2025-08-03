@@ -9,11 +9,13 @@ exec 1> >(logger -t motd-cache-warmer -p user.info)
 exec 2> >(logger -t motd-cache-warmer -p user.err)
 
 log_info() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] $*" >> "$LOG_FILE"
+    local msg="$(date '+%Y-%m-%d %H:%M:%S') [INFO] $*"
+    echo "$msg" >> "$LOG_FILE" 2>/dev/null || echo "$msg" >&2
 }
 
 log_error() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] $*" >> "$LOG_FILE"
+    local msg="$(date '+%Y-%m-%d %H:%M:%S') [ERROR] $*"
+    echo "$msg" >> "$LOG_FILE" 2>/dev/null || echo "$msg" >&2
 }
 
 # Configuration
