@@ -1,8 +1,8 @@
 #!/bin/sh
-# Minimal MOTD - Compact server information display
+# Compact MOTD - Essential server information display
 
 # Colors
-R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; C='\033[0;36m'; NC='\033[0m'
+R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; B='\033[0;34m'; C='\033[0;36m'; W='\033[1;37m'; NC='\033[0m'
 
 # System info
 H=$(hostname -f 2>/dev/null || hostname)
@@ -12,28 +12,86 @@ LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 # Resources
 MEM=$(free | grep '^Mem:' | awk '{printf("%.0f%%", $3/$2*100)}')
 DISK=$(df -h / | tail -1 | awk '{print $5}')
-IP=$(ip -4 addr show scope global | grep inet | head -1 | awk '{print $2}' | cut -d'/' -f1)
 
-# Security
-F2B="✗"
+# Network - Get all active IPs
+IPS=$(ip -4 addr show scope global | grep inet | awk '{print $2}' | cut -d'/' -f1 | paste -sd',' - | sed 's/,/, /g')
+[ -z "$IPS" ] && IPS="none"
+
+# Service status check function
+svc_check() {
+    if systemctl is-active --quiet "$1" 2>/dev/null; then echo "${G}●${NC}"; else echo "${R}●${NC}"; fi
+}
+
+# Check critical services
+SVCS=""
+INACTIVE=0
+for svc in ssh nginx caddy apache2 mysql postgresql redis-server docker; do
+    if systemctl list-unit-files | grep -q "^$svc\.service"; then
+        if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            SVCS="$SVCS$svc:${G}●${NC} "
+        else
+            SVCS="$SVCS$svc:${R}●${NC} "
+            INACTIVE=$((INACTIVE + 1))
+        fi
+    fi
+done
+[ "$INACTIVE" -gt 0 ] && SVCS="$SVCS(${R}$INACTIVE down${NC})"
+
+# Docker containers (if docker is running)
+if systemctl is-active --quiet docker 2>/dev/null && command -v docker >/dev/null 2>&1; then
+    CONTAINERS=$(docker ps -q 2>/dev/null | wc -l)
+    STOPPED=$(docker ps -aq 2>/dev/null | wc -l)
+    STOPPED=$((STOPPED - CONTAINERS))
+    DOCKER_INFO=" | Docker:${G}$CONTAINERS${NC}"
+    [ "$STOPPED" -gt 0 ] && DOCKER_INFO="$DOCKER_INFO/${R}$STOPPED${NC}"
+else
+    DOCKER_INFO=""
+fi
+
+# Security services
+SEC="F2B:$(svc_check fail2ban) UFW:$(svc_check ufw)"
 if systemctl is-active --quiet fail2ban 2>/dev/null; then
-    F2B="✓"
     BANS=$(fail2ban-client status 2>/dev/null | grep "Jail list" | cut -d':' -f2 | tr ',' '\n' | while read j; do
         [ -n "$j" ] && fail2ban-client status "$j" 2>/dev/null | grep "Currently banned:" | awk '{print $NF}'
     done | awk '{sum+=$1} END {print sum+0}')
-else
-    BANS="0"
+    [ "$BANS" -gt 0 ] && SEC="$SEC (${Y}$BANS banned${NC})"
 fi
 
-# Updates
-UPD=""
-if [ -f /var/lib/apt/periodic/update-success-stamp ]; then
-    U=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
-    [ "$U" -gt 0 ] && UPD=" | ${Y}Updates: $U${NC}"
+# Updates & Maintenance
+UPD_INFO=""
+if command -v apt-get >/dev/null 2>&1; then
+    # Check for updates
+    if [ -f /var/lib/apt/periodic/update-success-stamp ] || apt-get update >/dev/null 2>&1; then
+        UPDATES=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+        SECURITY=$(apt list --upgradable 2>/dev/null | grep -c "security" || echo "0")
+        AUTOREMOVE=$(apt-get --dry-run autoremove 2>/dev/null | grep -c "^Remv" || echo "0")
+        
+        if [ "$UPDATES" -gt 0 ] || [ "$AUTOREMOVE" -gt 0 ]; then
+            UPD_INFO="${Y}Updates:$UPDATES"
+            [ "$SECURITY" -gt 0 ] && UPD_INFO="$UPD_INFO($SECURITY sec)"
+            [ "$AUTOREMOVE" -gt 0 ] && UPD_INFO="$UPD_INFO Autoremove:$AUTOREMOVE"
+            UPD_INFO="$UPD_INFO${NC} | "
+        fi
+    fi
+fi
+
+# Backup status (future restic integration)
+BACKUP=""
+# Check for restic snapshots when implemented
+if command -v restic >/dev/null 2>&1 && [ -f "/etc/restic/restic.conf" ]; then
+    # This will be implemented when restic backup is set up
+    # LAST_BACKUP=$(restic snapshots --json --last 2>/dev/null | jq -r '.[0].time' 2>/dev/null | cut -d'T' -f1)
+    # [ -n "$LAST_BACKUP" ] && BACKUP="Backup:${G}$LAST_BACKUP${NC} | "
+    true
 fi
 
 # Display
 echo
-echo "${C}$H${NC} | Up: $UP | Load: $LOAD"
-echo "Mem: $MEM | Disk: $DISK | IP: $IP | F2B: $F2B ($BANS)$UPD"
+echo "${W}Welcome to ${C}$H${NC}"
+echo "────────────────────────────────────────────────────────────"
+echo "System: Up $UP | Load: $LOAD | Mem: $MEM | Disk: $DISK"
+echo "Network: $IPS"
+[ -n "$SVCS" ] && echo "Services: $SVCS$DOCKER_INFO"
+echo "Security: $SEC"
+[ -n "$UPD_INFO" ] || [ -n "$BACKUP" ] && echo "${UPD_INFO}${BACKUP}" | sed 's/ | $//'
 echo
