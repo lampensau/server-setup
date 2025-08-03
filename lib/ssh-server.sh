@@ -42,28 +42,11 @@ configure_ssh_server() {
     info "Configuring SSH server with modern security..."
     
     if [[ "${DRY_RUN:-false}" == "false" ]]; then
-        # Backup original config
-        cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d)
-        
         # Create modular config directory
         mkdir -p /etc/ssh/sshd_config.d
         
-        # Remove cloud-init SSH configurations that enable password authentication
-        for cloud_conf in /etc/ssh/sshd_config.d/*cloud*.conf; do
-            if [[ -f "$cloud_conf" ]]; then
-                info "Removing insecure cloud-init SSH config: $(basename "$cloud_conf")"
-                rm -f "$cloud_conf"
-            fi
-        done
-        
-        # Install security configuration
-        local temp_security_conf=$(mktemp)
-        envsubst < "$CONFIG_DIR/ssh/server/01-security.conf" > "$temp_security_conf"
-        atomic_install "$temp_security_conf" /etc/ssh/sshd_config.d/01-security.conf 644 root:root
-        rm "$temp_security_conf"
-
-        # Install SFTP configuration
-        atomic_install "$CONFIG_DIR/ssh/server/02-sftp.conf" /etc/ssh/sshd_config.d/02-sftp.conf 644 root:root
+        # Remove any existing configs that might conflict
+        rm -f /etc/ssh/sshd_config.d/*.conf
         
         # Update main sshd_config to include modular configs
         if ! grep -q "Include /etc/ssh/sshd_config.d/\*.conf" /etc/ssh/sshd_config; then
@@ -71,12 +54,24 @@ configure_ssh_server() {
             sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
         fi
         
+        # Comment out any existing Subsystem sftp lines to avoid duplicates
+        sed -i 's/^[[:space:]]*Subsystem[[:space:]]\+sftp/#&/' /etc/ssh/sshd_config
+        
+        # Install our security configuration
+        local temp_security_conf=$(mktemp)
+        envsubst < "$CONFIG_DIR/ssh/server/01-security.conf" > "$temp_security_conf"
+        atomic_install "$temp_security_conf" /etc/ssh/sshd_config.d/01-security.conf 644 root:root
+        rm "$temp_security_conf"
+
+        # Install SFTP configuration for SFTP-only users
+        atomic_install "$CONFIG_DIR/ssh/server/02-sftp.conf" /etc/ssh/sshd_config.d/02-sftp.conf 644 root:root
+        
         # Test SSH configuration before applying
         local sshd_test_output=$(sshd -T 2>&1)
         if [[ $? -ne 0 ]]; then
             error "SSH configuration test failed!"
             error "sshd -T output: $sshd_test_output"
-            rollback_ssh_config $(date +%Y%m%d)
+            error "Use restore script to rollback: $BACKUP_DIR/restore.sh"
             return 1
         fi
         
@@ -273,17 +268,23 @@ rollback_ssh_config() {
     info "Rolling back SSH configuration..."
     
     if [[ -f "/etc/ssh/sshd_config.backup.${backup_date}" ]]; then
+        # Restore main config
         cp "/etc/ssh/sshd_config.backup.${backup_date}" /etc/ssh/sshd_config
+        
+        # Remove our configs
         rm -f /etc/ssh/sshd_config.d/01-security.conf
         rm -f /etc/ssh/sshd_config.d/02-sftp.conf
         
-        # Also remove cloud-init configs that were disabled
-        for disabled_conf in /etc/ssh/sshd_config.d/*cloud*.conf.disabled; do
-            if [[ -f "$disabled_conf" ]]; then
-                # Restore original cloud-init config
-                mv "$disabled_conf" "${disabled_conf%.disabled}"
-            fi
-        done
+        # Restore any backed up configs from sshd_config.d
+        if ls /etc/ssh/sshd_config.d/backup/*.conf.backup.${backup_date} >/dev/null 2>&1; then
+            for backup in /etc/ssh/sshd_config.d/backup/*.conf.backup.${backup_date}; do
+                if [[ -f "$backup" ]]; then
+                    local original_name=$(basename "$backup" .backup.${backup_date})
+                    cp "$backup" "/etc/ssh/sshd_config.d/${original_name}"
+                    info "Restored: $original_name"
+                fi
+            done
+        fi
         
         # Test the rolled back configuration
         if sshd -T >/dev/null 2>&1; then
