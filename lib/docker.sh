@@ -582,9 +582,9 @@ configure_coolify_security() {
                                        "COOLIFY_DOMAIN"
             fi
             
-            # Restart Coolify containers to apply changes
+            # Restart Coolify containers to apply changes (use production compose file)
             if command -v docker >/dev/null 2>&1; then
-                cd /data/coolify/source && docker compose restart || warn "Could not restart Coolify containers"
+                cd /data/coolify/source && docker compose --file docker-compose.prod.yml restart || warn "Could not restart Coolify containers"
             else
                 warn "Docker not available - Coolify restart skipped"
             fi
