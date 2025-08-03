@@ -375,6 +375,12 @@ install_required_packages() {
                 return 1
             fi
             success "Successfully installed ${#packages_to_install[@]} packages"
+            
+            # Enable rsyslog if it was just installed
+            if [[ " ${packages_to_install[*]} " =~ " rsyslog " ]]; then
+                info "Enabling rsyslog for enhanced logging..."
+                systemctl enable --now rsyslog || warn "Could not enable rsyslog service"
+            fi
         else
             info "[DRY RUN] Would install packages: ${packages_to_install[*]}"
         fi
@@ -543,14 +549,8 @@ update_system() {
     if [[ "$DRY_RUN" == "false" ]]; then
         apt-get update
         apt-get upgrade -y
-        
-        # Enable essential logging system (package installed by centralized manager)
-        if ! systemctl is-active --quiet rsyslog 2>/dev/null; then
-            info "Enabling rsyslog for enhanced logging..."
-            systemctl enable --now rsyslog
-        fi
     else
-        info "[DRY RUN] Would update system packages and install rsyslog"
+        info "[DRY RUN] Would update system packages"
     fi
     success "System packages updated"
 }
