@@ -180,9 +180,20 @@ configure_log_rotation() {
     info "Configuring log rotation..."
     
     if [[ "$DRY_RUN" == "false" ]]; then
+        # Install OS-specific logrotate defaults if needed
+        if [[ "$OS_ID" == "ubuntu" ]] && [[ -f "$CONFIG_DIR/applications/logging/logrotate-ubuntu-defaults.conf" ]]; then
+            # Ubuntu 24.04+ uses syslog:adm for /var/log permissions
+            atomic_install "$CONFIG_DIR/applications/logging/logrotate-ubuntu-defaults.conf" "/etc/logrotate.d/00-ubuntu-defaults" "644" "root:root"
+            info "Installed Ubuntu-specific logrotate defaults for syslog group permissions"
+        fi
+        
         # Install application log rotation configurations
         for logrotate_conf in "$CONFIG_DIR/applications/logging"/logrotate-*.conf; do
             if [[ -f "$logrotate_conf" ]]; then
+                # Skip OS-specific defaults as they're handled above
+                if [[ "$(basename "$logrotate_conf")" == "logrotate-ubuntu-defaults.conf" ]]; then
+                    continue
+                fi
                 conf_name=$(basename "$logrotate_conf" | sed 's/logrotate-//')
                 atomic_install "$logrotate_conf" "/etc/logrotate.d/$conf_name" "644" "root:root"
                 info "Installed log rotation for: $conf_name"
