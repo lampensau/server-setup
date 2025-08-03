@@ -359,7 +359,8 @@ install_required_packages() {
     
     # Check which packages are not installed
     for package in "${packages[@]}"; do
-        if ! dpkg -l "$package" >/dev/null 2>&1; then
+        # Use dpkg-query with specific status check
+        if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "ok installed"; then
             packages_to_install+=("$package")
         fi
     done
@@ -395,7 +396,8 @@ install_packages() {
     
     # Check which packages are not installed
     for package in "${packages[@]}"; do
-        if ! dpkg -l "$package" >/dev/null 2>&1; then
+        # Use dpkg-query with specific status check
+        if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "ok installed"; then
             packages_to_install+=("$package")
         fi
     done
