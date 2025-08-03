@@ -200,6 +200,52 @@ configure_log_rotation() {
     fi
 }
 
+# Configure Message of the Day (MOTD)
+configure_motd() {
+    info "Configuring Message of the Day (MOTD)..."
+    
+    if [[ "$DRY_RUN" == "false" ]]; then
+        # Disable default Ubuntu MOTD scripts if they exist
+        if [[ -d /etc/update-motd.d ]]; then
+            # Remove execute permissions from default scripts
+            chmod -x /etc/update-motd.d/* 2>/dev/null || true
+            
+            # But keep the directory for our custom scripts
+            info "Disabled default Ubuntu MOTD scripts"
+        fi
+        
+        # Create MOTD directory if it doesn't exist
+        mkdir -p /etc/update-motd.d
+        
+        # Install our custom MOTD scripts
+        for motd_script in "$CONFIG_DIR/system/motd"/*; do
+            if [[ -f "$motd_script" ]]; then
+                script_name=$(basename "$motd_script")
+                atomic_install "$motd_script" "/etc/update-motd.d/$script_name" "755" "root:root"
+                info "Installed MOTD script: $script_name"
+            fi
+        done
+        
+        # Ensure motd-news is disabled (Ubuntu)
+        if [[ -f /etc/default/motd-news ]]; then
+            sed -i 's/ENABLED=1/ENABLED=0/' /etc/default/motd-news 2>/dev/null || true
+        fi
+        
+        # Disable motd-news service if it exists
+        if systemctl is-enabled --quiet motd-news.timer 2>/dev/null; then
+            systemctl disable --now motd-news.timer 2>/dev/null || true
+            systemctl disable --now motd-news.service 2>/dev/null || true
+        fi
+        
+        # Create /etc/motd file (static part, can be empty)
+        echo "" > /etc/motd
+        
+        success "MOTD configured with system information display"
+    else
+        info "[DRY RUN] Would configure MOTD with system information display"
+    fi
+}
+
 # Configure APT for production use
 configure_apt_production() {
     info "Configuring APT for production environment..."
@@ -279,6 +325,7 @@ apply_system_configuration() {
     configure_kernel_parameters
     configure_system_limits
     configure_log_rotation
+    configure_motd
     
     # Package management
     configure_apt_production

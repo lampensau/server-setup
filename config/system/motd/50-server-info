@@ -1,0 +1,39 @@
+#!/bin/sh
+# Minimal MOTD - Compact server information display
+
+# Colors
+R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; C='\033[0;36m'; NC='\033[0m'
+
+# System info
+H=$(hostname -f 2>/dev/null || hostname)
+UP=$(uptime -p 2>/dev/null | sed 's/up //' | sed 's/ days\?/d/g' | sed 's/ hours\?/h/g' | sed 's/ minutes\?/m/g' || echo "N/A")
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+
+# Resources
+MEM=$(free | grep '^Mem:' | awk '{printf("%.0f%%", $3/$2*100)}')
+DISK=$(df -h / | tail -1 | awk '{print $5}')
+IP=$(ip -4 addr show scope global | grep inet | head -1 | awk '{print $2}' | cut -d'/' -f1)
+
+# Security
+F2B="✗"
+if systemctl is-active --quiet fail2ban 2>/dev/null; then
+    F2B="✓"
+    BANS=$(fail2ban-client status 2>/dev/null | grep "Jail list" | cut -d':' -f2 | tr ',' '\n' | while read j; do
+        [ -n "$j" ] && fail2ban-client status "$j" 2>/dev/null | grep "Currently banned:" | awk '{print $NF}'
+    done | awk '{sum+=$1} END {print sum+0}')
+else
+    BANS="0"
+fi
+
+# Updates
+UPD=""
+if [ -f /var/lib/apt/periodic/update-success-stamp ]; then
+    U=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+    [ "$U" -gt 0 ] && UPD=" | ${Y}Updates: $U${NC}"
+fi
+
+# Display
+echo
+echo "${C}$H${NC} | Up: $UP | Load: $LOAD"
+echo "Mem: $MEM | Disk: $DISK | IP: $IP | F2B: $F2B ($BANS)$UPD"
+echo
