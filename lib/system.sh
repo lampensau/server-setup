@@ -304,11 +304,7 @@ configure_motd() {
                 info "MOTD cache warming cron job already exists"
             fi
             
-            # Set up log rotation for cache warmer
-            if [[ -f "$CONFIG_DIR/applications/logging/logrotate-motd-cache-warmer.conf" ]]; then
-                atomic_install "$CONFIG_DIR/applications/logging/logrotate-motd-cache-warmer.conf" "/etc/logrotate.d/motd-cache-warmer" "644" "root:root"
-                info "Configured log rotation for MOTD cache warmer"
-            fi
+            # Log rotation is handled by the general configure_log_rotation() function
             
             # Run initial cache warming (with error handling)
             if [[ -x /usr/local/bin/motd-cache-warmer.sh ]]; then
