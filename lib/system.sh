@@ -360,14 +360,24 @@ configure_motd() {
             # Add cron job for cache warming (every 30 minutes)
             CRON_ENTRY="*/30 * * * * /usr/local/bin/motd-cache-warmer.sh >/dev/null 2>&1"
             if ! crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
-                (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
-                info "Added MOTD cache warming cron job"
+                # Create temporary crontab file
+                local temp_crontab=$(mktemp)
+                crontab -l 2>/dev/null > "$temp_crontab" || true
+                echo "$CRON_ENTRY" >> "$temp_crontab"
                 
-                # Verify cron job was added
-                if crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
-                    info "Cron job verified successfully"
+                if crontab "$temp_crontab"; then
+                    info "Added MOTD cache warming cron job"
+                    rm -f "$temp_crontab"
+                    
+                    # Verify cron job was added
+                    if crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
+                        info "Cron job verified successfully"
+                    else
+                        warn "Failed to verify cron job installation"
+                    fi
                 else
-                    warn "Failed to verify cron job installation"
+                    warn "Failed to install MOTD cache warming cron job"
+                    rm -f "$temp_crontab"
                 fi
             else
                 info "MOTD cache warming cron job already exists"
