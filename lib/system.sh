@@ -432,6 +432,17 @@ test_system_configs() {
     
     # Test logrotate configuration
     if ! logrotate -d /etc/logrotate.conf >/dev/null 2>&1; then
+        error "Global logrotate configuration test failed - checking individual configs"
+        
+        # Test each logrotate config to find the problematic one
+        for logrotate_file in /etc/logrotate.d/*; do
+            if [[ -f "$logrotate_file" ]]; then
+                if ! logrotate -d "$logrotate_file" >/dev/null 2>&1; then
+                    error "Logrotate configuration failed: $(basename "$logrotate_file")"
+                fi
+            fi
+        done
+        
         error "Log rotation configuration test failed"
         return 1
     fi
