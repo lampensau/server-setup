@@ -175,28 +175,77 @@ configure_system_limits() {
     fi
 }
 
+# Get appropriate logrotate ownership for the OS
+get_logrotate_ownership() {
+    # Check existing system logrotate configs to determine ownership pattern
+    local sample_config="/etc/logrotate.d/apt"
+    if [[ -f "$sample_config" ]]; then
+        stat -c "%U:%G" "$sample_config"
+    else
+        # Fallback to root:root
+        echo "root:root"
+    fi
+}
+
+# Get appropriate su directive for logrotate based on OS
+get_logrotate_su_directive() {
+    case "$OS_ID" in
+        "ubuntu")
+            # Ubuntu 24.04+ uses syslog:adm for /var/log
+            echo "su syslog adm"
+            ;;
+        "debian")
+            # Debian typically uses root:adm
+            echo "su root adm"
+            ;;
+        *)
+            # Default to root:root
+            echo "su root root"
+            ;;
+    esac
+}
+
+# Install logrotate config with OS-appropriate su directive
+install_logrotate_config() {
+    local src="$1"
+    local dest="$2"
+    local ownership="$3"
+    
+    if [[ ! -f "$src" ]]; then
+        error "Source logrotate config not found: $src"
+        return 1
+    fi
+    
+    # Create temporary file with su directive added
+    local temp_config=$(mktemp)
+    local su_directive=$(get_logrotate_su_directive)
+    
+    # Add su directive after the opening brace if not already present
+    if ! grep -q "^[[:space:]]*su " "$src"; then
+        sed "/^[^#]*{/{N; s/\({[[:space:]]*\)/\1\n    $su_directive/}" "$src" > "$temp_config"
+    else
+        cp "$src" "$temp_config"
+    fi
+    
+    # Install the processed config
+    atomic_install "$temp_config" "$dest" "644" "$ownership"
+    rm -f "$temp_config"
+}
+
 # Configure log rotation
 configure_log_rotation() {
     info "Configuring log rotation..."
     
     if [[ "$DRY_RUN" == "false" ]]; then
-        # Install OS-specific logrotate defaults if needed
-        if [[ "$OS_ID" == "ubuntu" ]] && [[ -f "$CONFIG_DIR/applications/logging/logrotate-ubuntu-defaults.conf" ]]; then
-            # Ubuntu 24.04+ uses syslog:adm for /var/log permissions
-            atomic_install "$CONFIG_DIR/applications/logging/logrotate-ubuntu-defaults.conf" "/etc/logrotate.d/00-ubuntu-defaults" "644" "root:root"
-            info "Installed Ubuntu-specific logrotate defaults for syslog group permissions"
-        fi
+        # Determine appropriate ownership for logrotate configs
+        local logrotate_ownership=$(get_logrotate_ownership)
         
-        # Install application log rotation configurations
+        # Install application log rotation configurations with OS-appropriate su directives
         for logrotate_conf in "$CONFIG_DIR/applications/logging"/logrotate-*.conf; do
             if [[ -f "$logrotate_conf" ]]; then
-                # Skip OS-specific defaults as they're handled above
-                if [[ "$(basename "$logrotate_conf")" == "logrotate-ubuntu-defaults.conf" ]]; then
-                    continue
-                fi
                 conf_name=$(basename "$logrotate_conf" | sed 's/logrotate-//')
-                atomic_install "$logrotate_conf" "/etc/logrotate.d/$conf_name" "644" "root:root"
-                info "Installed log rotation for: $conf_name"
+                install_logrotate_config "$logrotate_conf" "/etc/logrotate.d/$conf_name" "$logrotate_ownership"
+                info "Installed log rotation for: $conf_name (with OS-appropriate su directive)"
             fi
         done
         
