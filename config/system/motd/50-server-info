@@ -13,13 +13,13 @@ LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
 MEM=$(free | grep '^Mem:' | awk '{printf("%.0f%%", $3/$2*100)}')
 DISK=$(df -h / | tail -1 | awk '{print $5}')
 
-# Network - Get all active IPs
-IPS=$(ip -4 addr show scope global | grep inet | awk '{print $2}' | cut -d'/' -f1 | paste -sd',' - | sed 's/,/, /g')
+# Network - Get primary IPs (exclude docker/bridge interfaces)
+IPS=$(ip -4 addr show scope global | grep -v "docker\|br-\|veth" | grep inet | awk '{print $2}' | cut -d'/' -f1 | paste -sd',' - | sed 's/,/, /g')
 [ -z "$IPS" ] && IPS="none"
 
 # Service status check function
 svc_check() {
-    if systemctl is-active --quiet "$1" 2>/dev/null; then echo "${G}●${NC}"; else echo "${R}●${NC}"; fi
+    if systemctl is-active --quiet "$1" 2>/dev/null; then echo "${G}UP${NC}"; else echo "${R}DOWN${NC}"; fi
 }
 
 # Check critical services
@@ -28,9 +28,9 @@ INACTIVE=0
 for svc in ssh nginx caddy apache2 mysql postgresql redis-server docker; do
     if systemctl list-unit-files | grep -q "^$svc\.service"; then
         if systemctl is-active --quiet "$svc" 2>/dev/null; then
-            SVCS="$SVCS$svc:${G}●${NC} "
+            SVCS="$SVCS$svc: ${G}UP${NC}  "
         else
-            SVCS="$SVCS$svc:${R}●${NC} "
+            SVCS="$SVCS$svc: ${R}DOWN${NC}  "
             INACTIVE=$((INACTIVE + 1))
         fi
     fi
@@ -42,19 +42,19 @@ if systemctl is-active --quiet docker 2>/dev/null && command -v docker >/dev/nul
     CONTAINERS=$(docker ps -q 2>/dev/null | wc -l)
     STOPPED=$(docker ps -aq 2>/dev/null | wc -l)
     STOPPED=$((STOPPED - CONTAINERS))
-    DOCKER_INFO=" | Docker:${G}$CONTAINERS${NC}"
+    DOCKER_INFO=" | Docker: ${G}$CONTAINERS${NC}"
     [ "$STOPPED" -gt 0 ] && DOCKER_INFO="$DOCKER_INFO/${R}$STOPPED${NC}"
 else
     DOCKER_INFO=""
 fi
 
 # Security services
-SEC="F2B:$(svc_check fail2ban) UFW:$(svc_check ufw)"
+SEC="F2B: $(svc_check fail2ban)  UFW: $(svc_check ufw)"
 if systemctl is-active --quiet fail2ban 2>/dev/null; then
     BANS=$(fail2ban-client status 2>/dev/null | grep "Jail list" | cut -d':' -f2 | tr ',' '\n' | while read j; do
         [ -n "$j" ] && fail2ban-client status "$j" 2>/dev/null | grep "Currently banned:" | awk '{print $NF}'
     done | awk '{sum+=$1} END {print sum+0}')
-    [ "$BANS" -gt 0 ] && SEC="$SEC (${Y}$BANS banned${NC})"
+    [ "$BANS" -gt 0 ] && SEC="$SEC  (${Y}$BANS banned${NC})"
 fi
 
 # Updates & Maintenance
