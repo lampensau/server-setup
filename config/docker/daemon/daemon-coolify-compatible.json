@@ -1,0 +1,30 @@
+{
+  "storage-driver": "overlay2",
+  "live-restore": true,
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 64000,
+      "Name": "nofile", 
+      "Soft": 64000
+    },
+    "nproc": {
+      "Hard": 32768,
+      "Name": "nproc",
+      "Soft": 16384
+    }
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy": false,
+  "experimental": false,
+  "ip-forward": true,
+  "iptables": true,
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "dns": ["1.1.1.1", "1.0.0.1"],
+  "features": {
+    "buildkit": true
+  }
+}

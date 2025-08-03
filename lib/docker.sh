@@ -162,14 +162,9 @@ configure_docker_daemon_security_post_coolify() {
         
         # Create merged configuration using jq
         local hardened_config temp_merged
-        case "$SECURITY_PROFILE" in
-            "hardened")
-                hardened_config="$CONFIG_DIR/docker/daemon/daemon-hardened.json"
-                ;;
-            *)
-                hardened_config="$CONFIG_DIR/docker/daemon/daemon-standard.json"
-                ;;
-        esac
+        # Always use Coolify-compatible config since this is Docker with Coolify
+        hardened_config="$CONFIG_DIR/docker/daemon/daemon-coolify-compatible.json"
+        info "Using Coolify-compatible Docker configuration"
         
         temp_merged=$(mktemp)
         
@@ -201,8 +196,8 @@ configure_docker_daemon_security_post_coolify() {
                 fi
                 
                 cp "$temp_merged" /etc/docker/daemon.json
-                info "Applied maximum security hardening to Coolify daemon configuration"
-                info "Security features enabled: userns-remap, no-new-privileges, icc=false, seccomp, AppArmor"
+                info "Applied Coolify-compatible Docker daemon configuration"
+                info "Features enabled: live-restore, optimized logging, secure DNS, systemd cgroup driver"
             else
                 error "JSON validation failed for hardened configuration"
                 return 1
@@ -225,7 +220,7 @@ configure_docker_daemon_security_post_coolify() {
     # Apply external static security configurations
     apply_external_docker_security_configs
     
-    success "Hardened daemon configuration applied post-Coolify"
+    success "Coolify-compatible daemon configuration applied post-Coolify"
 }
 
 # Apply external static security configurations for maximum security
