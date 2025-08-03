@@ -139,10 +139,11 @@ test_ssh_client_config() {
         return 0
     fi
     
-    # Test SSH config syntax
+    # Test SSH config syntax using proper method
     if [[ -f "$user_home/.ssh/config" ]]; then
-        if ! sudo -u "$user_name" ssh -T -F "$user_home/.ssh/config" -o ConnectTimeout=1 invalid-host 2>&1 | grep -q "ssh:"; then
-            warn "SSH config may have syntax issues"
+        # Use ssh -G to test config syntax without actually connecting
+        if ! sudo -u "$user_name" ssh -G -F "$user_home/.ssh/config" nonexistent-host >/dev/null 2>&1; then
+            warn "SSH config syntax check failed"
         fi
     fi
     

@@ -756,11 +756,16 @@ test_docker_config() {
             fi
         done
         
-        # Test Coolify status
-        if systemctl is-active --quiet coolify 2>/dev/null; then
-            success "✓ Coolify service is running"
-        elif [[ -f /data/coolify/source/.env ]]; then
-            warn "⚠ Coolify installed but service not active"
+        # Test Coolify status (checks Docker containers, not systemd)
+        if [[ -f /data/coolify/source/.env ]]; then
+            # Check if Coolify containers are running
+            local coolify_containers=$(docker ps --filter "name=coolify" --format "{{.Names}}" 2>/dev/null | wc -l)
+            if [[ $coolify_containers -gt 0 ]]; then
+                success "✓ Coolify is running ($coolify_containers containers)"
+            else
+                warn "⚠ Coolify installed but containers not running"
+                test_failures=$((test_failures + 1))
+            fi
         else
             warn "⚠ Coolify not detected"
         fi
@@ -797,13 +802,14 @@ show_docker_status() {
         echo "Docker service: $(systemctl is-active docker 2>/dev/null || echo 'inactive')"
         echo "Containerd service: $(systemctl is-active containerd 2>/dev/null || echo 'inactive')"
         
-        # Coolify status and URL
-        if systemctl list-unit-files | grep -q coolify; then
-            local coolify_status
-            coolify_status=$(systemctl is-active coolify 2>/dev/null || echo 'inactive')
-            echo "Coolify service: $coolify_status"
+        # Coolify status and URL (check containers, not systemd)
+        if [[ -f /data/coolify/source/.env ]]; then
+            local coolify_containers
+            coolify_containers=$(docker ps --filter "name=coolify" --format "{{.Names}}" 2>/dev/null | wc -l)
             
-            if [[ "$coolify_status" == "active" ]]; then
+            if [[ $coolify_containers -gt 0 ]]; then
+                echo "Coolify: Running ($coolify_containers containers)"
+                
                 local coolify_domain="${DOMAIN:-localhost}"
                 if [[ "$coolify_domain" == "localhost" ]]; then
                     echo "Coolify URL: http://localhost:8000"
@@ -811,6 +817,8 @@ show_docker_status() {
                 else
                     echo "Coolify URL: https://$coolify_domain"
                 fi
+            else
+                echo "Coolify: Installed but containers not running"
             fi
         else
             echo "Coolify: Not installed"
