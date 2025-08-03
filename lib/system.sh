@@ -207,17 +207,23 @@ configure_motd() {
     if [[ "$DRY_RUN" == "false" ]]; then
         # Disable default Ubuntu MOTD scripts if they exist
         if [[ -d /etc/update-motd.d ]]; then
+            # Backup original scripts before disabling
+            if [[ ! -d /etc/update-motd.d.backup ]]; then
+                cp -r /etc/update-motd.d /etc/update-motd.d.backup 2>/dev/null || true
+                info "Backed up original MOTD scripts"
+            fi
+            
             # Remove execute permissions from default scripts
             chmod -x /etc/update-motd.d/* 2>/dev/null || true
             
-            # But keep the directory for our custom scripts
+            # But keep the directory for the custom scripts
             info "Disabled default Ubuntu MOTD scripts"
         fi
         
         # Create MOTD directory if it doesn't exist
         mkdir -p /etc/update-motd.d
         
-        # Install our custom MOTD scripts
+        # Install the custom MOTD scripts
         for motd_script in "$CONFIG_DIR/system/motd"/*; do
             if [[ -f "$motd_script" ]]; then
                 script_name=$(basename "$motd_script")
@@ -226,21 +232,65 @@ configure_motd() {
             fi
         done
         
+        # Validate MOTD scripts are working
+        if command -v update-motd >/dev/null 2>&1; then
+            if timeout 10 update-motd 2>/dev/null; then
+                info "MOTD scripts validated successfully"
+            else
+                warn "MOTD validation failed - check script syntax"
+            fi
+        fi
+        
         # Ensure motd-news is disabled (Ubuntu)
         if [[ -f /etc/default/motd-news ]]; then
-            sed -i 's/ENABLED=1/ENABLED=0/' /etc/default/motd-news 2>/dev/null || true
+            sed -i.backup 's/ENABLED=1/ENABLED=0/' /etc/default/motd-news 2>/dev/null || true
+            info "Disabled motd-news"
         fi
         
         # Disable motd-news service if it exists
         if systemctl is-enabled --quiet motd-news.timer 2>/dev/null; then
             systemctl disable --now motd-news.timer 2>/dev/null || true
             systemctl disable --now motd-news.service 2>/dev/null || true
+            info "Disabled motd-news service"
         fi
         
         # Create /etc/motd file (static part, can be empty)
         echo "" > /etc/motd
         
-        success "MOTD configured with system information display"
+        # Install MOTD cache warmer script
+        if [[ -f "$CONFIG_DIR/scripts/management/motd-cache-warmer.sh" ]]; then
+            atomic_install "$CONFIG_DIR/scripts/management/motd-cache-warmer.sh" "/usr/local/bin/motd-cache-warmer.sh" "755" "root:root"
+            
+            # Add cron job for cache warming (every 30 minutes)
+            CRON_ENTRY="*/30 * * * * /usr/local/bin/motd-cache-warmer.sh >/dev/null 2>&1"
+            if ! crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
+                (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
+                info "Added MOTD cache warming cron job"
+                
+                # Verify cron job was added
+                if crontab -l 2>/dev/null | grep -q "motd-cache-warmer"; then
+                    info "Cron job verified successfully"
+                else
+                    warn "Failed to verify cron job installation"
+                fi
+            else
+                info "MOTD cache warming cron job already exists"
+            fi
+            
+            # Set up log rotation for cache warmer
+            if [[ -f "$CONFIG_DIR/applications/logging/logrotate-motd-cache-warmer.conf" ]]; then
+                atomic_install "$CONFIG_DIR/applications/logging/logrotate-motd-cache-warmer.conf" "/etc/logrotate.d/motd-cache-warmer" "644" "root:root"
+                info "Configured log rotation for MOTD cache warmer"
+            fi
+            
+            # Run initial cache warming
+            if [[ -x /usr/local/bin/motd-cache-warmer.sh ]]; then
+                /usr/local/bin/motd-cache-warmer.sh &
+                info "Started initial cache warming"
+            fi
+        fi
+        
+        success "MOTD configured with system information display and cache warming"
     else
         info "[DRY RUN] Would configure MOTD with system information display"
     fi
