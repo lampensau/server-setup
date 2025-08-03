@@ -223,10 +223,14 @@ main() {
         # Reload systemd configuration
         systemctl daemon-reload
         
-        # Restart essential services
-        systemctl restart systemd-timesyncd || warn "Failed to restart systemd-timesyncd"
-        systemctl restart systemd-journald || warn "Failed to restart systemd-journald"
-        systemctl restart systemd-resolved || warn "Failed to restart systemd-resolved"
+        # Restart essential services (only if they exist)
+        for service in systemd-timesyncd systemd-journald systemd-resolved; do
+            if systemctl list-unit-files | grep -q "^${service}.service"; then
+                systemctl restart "$service" || warn "Failed to restart $service"
+            else
+                info "Service $service not available on this system"
+            fi
+        done
     fi
     
     # Phase 7: Verification and Summary

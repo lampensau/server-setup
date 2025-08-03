@@ -576,10 +576,14 @@ show_system_status() {
     # Service status
     echo "Key Service Status:"
     for service in systemd-timesyncd systemd-journald systemd-resolved; do
-        if systemctl is-active --quiet "$service"; then
-            echo "$service: Active"
+        if systemctl list-unit-files | grep -q "^${service}.service"; then
+            if systemctl is-active --quiet "$service"; then
+                echo "$service: Active"
+            else
+                echo "$service: Inactive"
+            fi
         else
-            echo "$service: Inactive"
+            echo "$service: Not available"
         fi
     done
 }
